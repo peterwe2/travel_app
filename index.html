@@ -574,7 +574,7 @@
     <div class="sb-brand">
       <span class="sb-icon">🏝</span>
       <div>
-        <div class="sb-title">2026 沖繩旅遊</div>
+        <div class="sb-title">2026 日本沖繩</div>
         <div class="sb-sub">5天4夜・週年之旅</div>
       </div>
     </div>
@@ -593,7 +593,7 @@
   <!-- Mobile header -->
   <div class="mob-header">
     <button class="mob-menu-btn" onclick="openMobMenu()">☰</button>
-    <span class="mob-hdr-title">🏝 沖繩旅遊行程</span>
+    <span class="mob-hdr-title">🏝 2026沖繩週年之旅</span>
     <div class="mob-presence" id="presence-bar-mob"></div>
   </div>
 
@@ -747,10 +747,6 @@
     <div class="form-group">
       <label>副標題 / 主題</label>
       <input id="d-theme" type="text" placeholder="感受琉球王國歷史文化，漫步國際通" maxlength="40"/>
-    </div>
-    <div class="form-group">
-      <label>主題色</label>
-      <div class="color-row" id="day-color-row"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeDayModal()">取消</button>
@@ -1523,8 +1519,6 @@ document.getElementById('day-overlay').addEventListener('click',  e=>{ if(e.targ
 // ════════════════════════════════════════════════════
 // DAY EDIT
 // ════════════════════════════════════════════════════
-const DAY_COLORS = ['#023e58','#c05621','#276749','#553c9a','#1a6995','#b7791f','#065f46','#9b2335']
-let editDayColor = '#023e58'
 
 function openEditDay() {
   const day = days.find(d => d.day_number === curDay)
@@ -1532,19 +1526,10 @@ function openEditDay() {
   document.getElementById('d-date').value  = day.trip_date || ''
   document.getElementById('d-title').value = day.title || ''
   document.getElementById('d-theme').value = day.theme || ''
-  editDayColor = day.color || DAY_COLORS[0]
-  document.getElementById('day-color-row').innerHTML = DAY_COLORS.map(c =>
-    `<div class="swatch ${c===editDayColor?'sel':''}" style="background:${c}" data-c="${c}" onclick="pickDayColor(this)"></div>`
-  ).join('')
   document.getElementById('day-overlay').classList.remove('hidden')
   setTimeout(() => document.getElementById('d-title').select(), 50)
 }
 
-function pickDayColor(el) {
-  document.querySelectorAll('#day-color-row .swatch').forEach(s => s.classList.remove('sel'))
-  el.classList.add('sel')
-  editDayColor = el.dataset.c
-}
 
 function closeDayModal() { document.getElementById('day-overlay').classList.add('hidden') }
 
@@ -1556,7 +1541,6 @@ async function saveDay() {
   const payload = {
     title,
     theme:     document.getElementById('d-theme').value.trim() || null,
-    color:     editDayColor,
     trip_date: document.getElementById('d-date').value || null,
   }
   const { error } = await db.from('days').update(payload).eq('id', day.id)
