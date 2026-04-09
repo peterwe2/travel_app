@@ -254,8 +254,16 @@
       display: flex; align-items: center; justify-content: space-between;
       gap: 10px; flex-wrap: wrap; margin-bottom: 4px;
     }
-.day-title-row {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%;
+.day-hero-header {
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .day-hero-left { flex: 1; min-width: 0; }
+    .day-hero-right {
+      display: flex; flex-direction: column; align-items: flex-end;
+      gap: 6px; flex-shrink: 0;
+    }
+    .day-title-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     }
     .day-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
     .day-h1 {
@@ -1161,18 +1169,24 @@ function renderDay() {
 
   document.getElementById('main').innerHTML = `
     <div class="day-hero panel-anim">
-      <div class="day-title-row">
-        <span class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</span>
-        <h1 class="day-h1">${day.title}</h1>
-        <button class="btn btn-sm" onclick="openEditDay()" title="編輯標題" style="margin-left:auto">編輯</button>
+      <div class="day-hero-header">
+        <div class="day-hero-left">
+          <div class="day-title-row">
+            <span class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</span>
+            <h1 class="day-h1">${day.title}</h1>
+          </div>
+          <div class="day-theme">${day.theme||''}</div>
+        </div>
+        <div class="day-hero-right">
+          <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題">編輯</button>
+          <button class="btn btn-primary btn-sm" onclick="openAddEvt('${day.id}')">＋ 新增行程事件</button>
+        </div>
       </div>
-      <div class="day-theme">${day.theme||''}</div>
       <div class="day-actions">
         ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">查看今日路線</a>` : ''}
       </div>
     </div>
     <div class="timeline">${timelineHtml}</div>
-    <button class="add-btn" onclick="openAddEvt('${day.id}')">＋ 新增行程事件</button>
   `
   // Fetch driving info for all connectors after render
   evts.forEach((e, i) => {
