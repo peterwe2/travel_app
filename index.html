@@ -364,6 +364,29 @@
   </div>
 </div>
 
+<!-- ══ DAY EDIT MODAL ══ -->
+<div id="day-overlay" class="overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">✏️ 編輯當日標題</div>
+    <div class="form-group">
+      <label>標題 <span style="color:var(--muted);font-weight:400">（例如：Day 1 那霸・首里城）</span></label>
+      <input id="d-title" type="text" placeholder="Day 1 那霸・首里城" maxlength="30"/>
+    </div>
+    <div class="form-group">
+      <label>副標題 / 主題</label>
+      <input id="d-theme" type="text" placeholder="感受琉球王國歷史文化，漫步國際通" maxlength="40"/>
+    </div>
+    <div class="form-group">
+      <label>主題色</label>
+      <div class="color-row" id="day-color-row"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDayModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveDay()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -560,6 +583,10 @@ async function loadCreds() {
 // ════════════════════════════════════════════════════
 function setupRealtime() {
   db.channel('db-changes')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'days'}, async p => {
+      const idx = days.findIndex(d => d.id === p.new.id)
+      if (idx !== -1) { days[idx] = { ...days[idx], ...p.new }; renderTabs(); if(curTab==='day') renderPanel() }
+    })
     .on('postgres_changes',{event:'*',schema:'public',table:'events'}, async p => {
       await loadAllEvts()
       if (curTab==='day') renderPanel()
@@ -633,7 +660,13 @@ function renderDay() {
 
   document.getElementById('main').innerHTML = `
     <div class="day-hero" style="background:linear-gradient(135deg,${day.color},${light})">
-      <div><h2>${day.title}</h2><p>${day.theme}</p></div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap">
+          <h2>${day.title}</h2>
+          <button class="btn btn-route btn-sm" style="font-size:.72rem;padding:.2rem .6rem;opacity:.8" onclick="openEditDay()">✏️</button>
+        </div>
+        <p>${day.theme}</p>
+      </div>
       ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">🗺 查看今日路線</a>` : ''}
     </div>
     <div class="timeline">${timelineHtml}</div>
@@ -1067,6 +1100,54 @@ function toast(msg) {
 
 document.getElementById('evt-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('evt-overlay'))  closeEvtModal() })
 document.getElementById('cred-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('cred-overlay')) closeCredModal() })
+document.getElementById('day-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('day-overlay'))  closeDayModal() })
+
+// ════════════════════════════════════════════════════
+// DAY EDIT
+// ════════════════════════════════════════════════════
+const DAY_COLORS = ['#023e58','#c05621','#276749','#553c9a','#1a6995','#b7791f','#065f46','#9b2335']
+let editDayColor = '#023e58'
+
+function openEditDay() {
+  const day = days.find(d => d.day_number === curDay)
+  if (!day) return
+  document.getElementById('d-title').value = day.title || ''
+  document.getElementById('d-theme').value = day.theme || ''
+  editDayColor = day.color || DAY_COLORS[0]
+  // render color swatches
+  document.getElementById('day-color-row').innerHTML = DAY_COLORS.map(c =>
+    `<div class="swatch ${c===editDayColor?'sel':''}" style="background:${c}" data-c="${c}" onclick="pickDayColor(this)"></div>`
+  ).join('')
+  document.getElementById('day-overlay').classList.remove('hidden')
+  setTimeout(() => document.getElementById('d-title').select(), 50)
+}
+
+function pickDayColor(el) {
+  document.querySelectorAll('#day-color-row .swatch').forEach(s => s.classList.remove('sel'))
+  el.classList.add('sel')
+  editDayColor = el.dataset.c
+}
+
+function closeDayModal() { document.getElementById('day-overlay').classList.add('hidden') }
+
+async function saveDay() {
+  const title = document.getElementById('d-title').value.trim()
+  if (!title) { document.getElementById('d-title').focus(); return }
+  const day = days.find(d => d.day_number === curDay)
+  if (!day) return
+  const payload = {
+    title,
+    theme: document.getElementById('d-theme').value.trim() || null,
+    color: editDayColor,
+  }
+  const { error } = await db.from('days').update(payload).eq('id', day.id)
+  if (error) { toast(`❌ 儲存失敗：${error.message}`); return }
+  // update local state immediately
+  Object.assign(day, payload)
+  closeDayModal()
+  renderTabs()
+  renderPanel()
+}
 
 function changeUser() {
   clearUser()
