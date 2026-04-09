@@ -1286,7 +1286,14 @@ function evtCard(e, day) {
 }
 
 function toggleMap(id) {
-  document.getElementById('map-'+id)?.classList.toggle('open')
+  const frame = document.getElementById('map-'+id)
+  if (!frame) return
+  const isOpen = frame.classList.toggle('open')
+  const btn = frame.previousElementSibling?.querySelector('.map-btn')
+  if (btn) {
+    btn.style.background = isOpen ? 'var(--hover)' : ''
+    btn.style.color      = isOpen ? 'var(--text)'  : ''
+  }
 }
 
 /* ── CHECKLIST CARD RENDER ── */
