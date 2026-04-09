@@ -257,7 +257,7 @@
 .day-title-row {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     }
-    .day-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 8px; }
+    .day-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
     .day-h1 {
       font-size: 1.7rem;
       font-weight: 700;
@@ -1156,8 +1156,8 @@ function renderDay() {
 
   document.getElementById('main').innerHTML = `
     <div class="day-hero panel-anim">
-      <div class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</div>
       <div class="day-title-row">
+        <span class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</span>
         <h1 class="day-h1">${day.title}</h1>
         <button class="btn btn-sm" onclick="openEditDay()" title="編輯標題">✏️</button>
       </div>
