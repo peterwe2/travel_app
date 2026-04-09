@@ -191,9 +191,12 @@
       <div class="hdr-title">🏝 2026沖繩週年之旅</div>
       <div class="hdr-sub">5天4夜・吃爆玩爆喝爆🤩🥰😍</div>
     </div>
-    <div>
-      <div style="color:rgba(255,255,255,.6);font-size:.7rem;margin-bottom:.3rem">目前在線</div>
-      <div class="presence-bar" id="presence-bar"><span class="p-label">連線中...</span></div>
+    <div style="display:flex;align-items:flex-end;flex-direction:column;gap:.35rem">
+      <div>
+        <div style="color:rgba(255,255,255,.6);font-size:.7rem;margin-bottom:.3rem">目前在線</div>
+        <div class="presence-bar" id="presence-bar"><span class="p-label">連線中...</span></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="change-user-btn" onclick="changeUser()" style="font-size:.72rem;padding:.22rem .65rem;opacity:.75">✏️ 變更身份</button>
     </div>
   </header>
 
@@ -334,8 +337,21 @@ const db = createClient(SUPA_URL, SUPA_KEY)
 // STATE
 // ════════════════════════════════════════════════════
 const COLORS = ['#0077b6','#f77f00','#52b788','#7c3aed','#dc2626','#0891b2','#d97706','#059669']
-let userName  = localStorage.getItem('ok_name')
-let userColor = localStorage.getItem('ok_color') || COLORS[0]
+// ── Cookie helpers (expires 90 days) ──
+function setCookie(name, val, days=90) {
+  const exp = new Date(Date.now() + days*864e5).toUTCString()
+  document.cookie = `${name}=${encodeURIComponent(val)};expires=${exp};path=/;SameSite=Lax`
+}
+function getCookie(name) {
+  const m = document.cookie.match('(?:^|; )'+name+'=([^;]*)')
+  return m ? decodeURIComponent(m[1]) : null
+}
+function deleteCookie(name) {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+}
+
+let userName  = getCookie('ok_name')
+let userColor = getCookie('ok_color') || COLORS[0]
 let curDay = 1, curTab = 'day', credFilter = 'all'
 let editEvtId = null, editCredId = null, editDayId = null
 let days = [], evtMap = {}, creds = [], online = []
@@ -418,8 +434,8 @@ function confirmName() {
   const v = document.getElementById('name-inp').value.trim()
   if (!v) { document.getElementById('name-inp').focus(); return }
   userName = v
-  localStorage.setItem('ok_name', v)
-  localStorage.setItem('ok_color', userColor)
+  setCookie('ok_name', v)
+  setCookie('ok_color', userColor)
   document.getElementById('name-overlay').classList.add('hidden')
   startApp()
 }
@@ -774,6 +790,17 @@ function toast(msg) {
 
 document.getElementById('evt-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('evt-overlay'))  closeEvtModal() })
 document.getElementById('cred-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('cred-overlay')) closeCredModal() })
+
+function changeUser() {
+  deleteCookie('ok_name')
+  deleteCookie('ok_color')
+  userName  = null
+  userColor = COLORS[0]
+  // 重設輸入框
+  document.getElementById('name-inp').value = ''
+  initColorRow()
+  document.getElementById('name-overlay').classList.remove('hidden')
+}
 </script>
 </body>
 </html>
