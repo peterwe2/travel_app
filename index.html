@@ -385,23 +385,38 @@
     .add-btn:hover { border-color: #c4c3bf; color: var(--text); background: var(--sb-bg); }
 
     /* ── DRIVING CONNECTOR ── */
+    /* Same flex structure as tl-item so columns align perfectly */
     .drive-connector {
-      display: flex; align-items: center;
-      margin: 0 0 0 56px;
-      padding-left: 25px;
-      position: relative;
-      min-height: 14px;
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+      align-items: stretch;
     }
-    .drive-connector::before {
-      content:''; position:absolute; left: 10px; top: 0; bottom: 0;
-      width: 1px; background: var(--border);
+    /* Spacer matching .tl-time width */
+    .drive-c-spacer {
+      width: 56px; flex-shrink: 0;
+    }
+    /* Dot column: continuous line through connector */
+    .drive-c-dot-col {
+      width: 21px; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .drive-c-line {
+      width: 1px; flex: 1; background: var(--border);
+    }
+    /* Pill area */
+    .drive-c-body {
+      flex: 1; margin-left: 8px;
+      display: flex; align-items: center;
+      padding: 6px 0;
     }
     .drive-pill {
       display: inline-flex; align-items: center; gap: 5px;
-      background: var(--sb-bg); border: 1px solid var(--border);
-      border-radius: 20px; padding: 3px 11px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 12px;
       font-size: .72rem; color: var(--muted); font-weight: 500;
       cursor: pointer; transition: all .12s; text-decoration: none;
+      white-space: nowrap;
     }
     .drive-pill:hover { background: var(--hover); color: var(--text); border-color: #c4c3bf; }
     .drive-pill.loading { animation: pulse 1.2s infinite; cursor: default; }
@@ -1155,22 +1170,25 @@ function driveConnector(a, b) {
   const key = driveKey(a, b)
   const id  = `drive-${key.replace(/[^0-9.]/g,'_')}`
   const cached = driveCache[key]
-  let inner
+  let pill
   if (cached === 'err') {
-    inner = `<span class="drive-pill no-data">📍 無法取得距離</span>`
+    pill = `<span class="drive-pill no-data">無法取得距離</span>`
   } else if (cached) {
-    inner = drivePillHtml(cached, a, b)
+    pill = drivePillHtml(cached, a, b)
   } else {
-    inner = `<span class="drive-pill loading" id="${id}">🚗 計算中...</span>`
+    pill = `<span class="drive-pill loading" id="${id}">計算中...</span>`
   }
-  return `<div class="drive-connector">${inner}</div>`
+  return `
+  <div class="drive-connector">
+    <div class="drive-c-spacer"></div>
+    <div class="drive-c-dot-col"><div class="drive-c-line"></div></div>
+    <div class="drive-c-body">${pill}</div>
+  </div>`
 }
 
 function drivePillHtml(data, a, b) {
   const dirUrl = `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}`
-  return `<a class="drive-pill" href="${dirUrl}" target="_blank" title="在 Google Maps 開啟導航">
-    🚗 ${data.dist} &nbsp;·&nbsp; 🕐 ${data.time}
-  </a>`
+  return `<a class="drive-pill" href="${dirUrl}" target="_blank" title="在 Google Maps 開啟導航">🚗 ${data.dist} · ${data.time}</a>`
 }
 
 async function fetchDriving(a, b) {
@@ -1202,9 +1220,9 @@ async function fetchDriving(a, b) {
   const el = document.getElementById(id)
   if (!el) return
   const pill = driveCache[key] === 'err'
-    ? `<span class="drive-pill no-data">📍 無法取得距離</span>`
+    ? `<span class="drive-pill no-data">無法取得距離</span>`
     : drivePillHtml(driveCache[key], a, b)
-  el.closest('.drive-connector').innerHTML = pill
+  el.closest('.drive-c-body').innerHTML = pill
 }
 
 function evtCard(e, day) {
