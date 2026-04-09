@@ -434,6 +434,21 @@
     .cc-link  { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; color: var(--accent); text-decoration: none; font-weight: 500; margin-bottom: 8px; word-break: break-all; }
     .cc-link:hover { text-decoration: underline; }
     .cc-foot  { display: flex; gap: 5px; border-top: 1px solid var(--faint); padding-top: 8px; }
+    /* cred image */
+    .cc-img { width:100%; height:160px; object-fit:cover; border-radius:var(--r-md); margin-bottom:9px; cursor:pointer; display:block; }
+    /* upload zone */
+    .upload-zone {
+      border: 1.5px dashed var(--border); border-radius: var(--r-md);
+      padding: 18px; text-align: center; cursor: pointer;
+      color: var(--muted); font-size: .82rem; transition: all .12s;
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+    .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+    .upload-preview { width:100%; height:140px; object-fit:cover; border-radius:var(--r-md); display:block; margin-bottom:6px; }
+    .upload-clear { font-size:.75rem; color:var(--red); cursor:pointer; background:none; border:none; font-family:var(--font); }
+    .upload-clear:hover { text-decoration:underline; }
+    .upload-spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:5px; }
     .cred-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .cred-top h2 { font-size: 1.1rem; font-weight: 700; }
     .page-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 20px; }
@@ -449,6 +464,8 @@
     .c-car      { background: #d1fae5; color: #065f46; }
     .c-activity { background: #fef3c7; color: #92400e; }
     .c-other    { background: var(--sb-bg); color: #57534e; }
+    .c-ticket   { background: #fef9c3; color: #854d0e; }
+    .c-booking  { background: #ede9fe; color: #5b21b6; }
 
     /* ── MODAL ── */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 900; padding: 16px; }
@@ -687,6 +704,8 @@
           <option value="hotel">🏨 住宿</option>
           <option value="car">🚗 租車</option>
           <option value="activity">🎯 活動</option>
+          <option value="ticket">🎟 票券</option>
+          <option value="booking">📋 預訂</option>
           <option value="other">📄 其他</option>
         </select>
       </div>
@@ -717,10 +736,17 @@
         <input id="c-until" type="date"/>
       </div>
     </div>
+    <div class="form-group">
+      <label>圖片（票券截圖 / QR Code / 訂單確認頁）</label>
+      <div id="c-upload-zone" class="upload-zone" onclick="document.getElementById('c-img-file').click()">
+        <input type="file" id="c-img-file" accept="image/*" onchange="previewCredImg(event)" onclick="event.stopPropagation()"/>
+        <div id="c-upload-hint">📎 點擊或拖曳上傳圖片</div>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeCredModal()">取消</button>
       <button class="btn btn-danger btn-sm" id="cred-del-btn" style="display:none" onclick="deleteCred()">刪除</button>
-      <button class="btn btn-primary" onclick="saveCred()">儲存</button>
+      <button class="btn btn-primary" id="cred-save-btn" onclick="saveCred()">儲存</button>
     </div>
   </div>
 </div>
@@ -1247,8 +1273,8 @@ function lighten(hex) {
 }
 
 /* ── CREDENTIALS ── */
-const CRED_ICON  = {flight:'✈️',hotel:'🏨',car:'🚗',activity:'🎯',other:'📄'}
-const CRED_LABEL = {flight:'機票',hotel:'住宿',car:'租車',activity:'活動',other:'其他'}
+const CRED_ICON  = {flight:'✈️',hotel:'🏨',car:'🚗',activity:'🎯',ticket:'🎟',booking:'📋',other:'📄'}
+const CRED_LABEL = {flight:'機票',hotel:'住宿',car:'租車',activity:'活動',ticket:'票券',booking:'預訂',other:'其他'}
 
 function renderCredPanel() {
   const shown = credFilter==='all' ? creds : creds.filter(c=>c.type===credFilter)
@@ -1258,7 +1284,7 @@ function renderCredPanel() {
       <button class="btn btn-primary btn-sm" onclick="openAddCred()">＋ 新增憑證</button>
     </div>
     <div class="cred-filters">
-      ${['all','flight','hotel','car','activity','other'].map(f =>
+      ${['all','flight','hotel','car','activity','ticket','booking','other'].map(f =>
         `<button class="cf-btn ${credFilter===f?'active':''}" onclick="setCF('${f}')">
           ${f==='all'?'全部':CRED_ICON[f]+' '+CRED_LABEL[f]}
         </button>`).join('')}
@@ -1272,15 +1298,16 @@ function credCard(c) {
   const dates = [c.valid_from, c.valid_until&&c.valid_until!==c.valid_from?'→ '+c.valid_until:''].filter(Boolean).join(' ')
   return `
   <div class="cred-card">
+    ${c.image_url ? `<img class="cc-img" src="${c.image_url}" alt="${escHtml(c.title)}" onclick="window.open('${c.image_url}','_blank')"/>` : ''}
     <div class="cc-head">
       <div class="cc-icon">${CRED_ICON[c.type]||'📄'}</div>
       <div>
         <div class="cc-badge c-${c.type}">${CRED_LABEL[c.type]||c.type}</div>
-        <div class="cc-title">${c.title}</div>
+        <div class="cc-title">${escHtml(c.title)}</div>
       </div>
     </div>
-    ${c.description ? `<div class="cc-desc">${c.description}</div>` : ''}
-    ${c.confirmation_number ? `<div class="cc-code">📋 ${c.confirmation_number}</div>` : ''}
+    ${c.description ? `<div class="cc-desc">${escHtml(c.description)}</div>` : ''}
+    ${c.confirmation_number ? `<div class="cc-code">📋 ${escHtml(c.confirmation_number)}</div>` : ''}
     ${dates ? `<div class="cc-dates">📅 ${dates}</div>` : ''}
     ${c.link_url ? `<a class="cc-link" href="${c.link_url}" target="_blank">🔗 開啟連結 ↗</a>` : ''}
     <div class="cc-foot">
@@ -1453,12 +1480,56 @@ async function deleteEvt() {
 // ════════════════════════════════════════════════════
 // CREDENTIAL CRUD
 // ════════════════════════════════════════════════════
+let credImgFile = null      // pending File object
+let credImgUrl  = null      // existing URL (edit mode)
+
+function resetCredUpload(existingUrl = null) {
+  credImgFile = null
+  credImgUrl  = existingUrl
+  const zone = document.getElementById('c-upload-zone')
+  document.getElementById('c-img-file').value = ''
+  if (existingUrl) {
+    zone.innerHTML = `
+      <img class="upload-preview" src="${existingUrl}" alt="已上傳圖片"/>
+      <button class="upload-clear" onclick="clearCredImg(event)">✕ 移除圖片</button>
+      <input type="file" id="c-img-file" accept="image/*" onchange="previewCredImg(event)" onclick="event.stopPropagation()" style="display:none"/>`
+  } else {
+    zone.innerHTML = `
+      <input type="file" id="c-img-file" accept="image/*" onchange="previewCredImg(event)" onclick="event.stopPropagation()"/>
+      <div id="c-upload-hint">📎 點擊或拖曳上傳圖片</div>`
+    zone.onclick = () => document.getElementById('c-img-file').click()
+  }
+}
+
+function previewCredImg(e) {
+  const file = e.target.files[0]; if (!file) return
+  credImgFile = file
+  const url = URL.createObjectURL(file)
+  const zone = document.getElementById('c-upload-zone')
+  zone.innerHTML = `
+    <img class="upload-preview" src="${url}" alt="預覽"/>
+    <button class="upload-clear" onclick="clearCredImg(event)">✕ 移除圖片</button>
+    <input type="file" id="c-img-file" accept="image/*" onchange="previewCredImg(event)" onclick="event.stopPropagation()" style="display:none"/>`
+  zone.onclick = () => document.getElementById('c-img-file').click()
+}
+
+function clearCredImg(e) {
+  e.stopPropagation()
+  credImgFile = null; credImgUrl = null
+  const zone = document.getElementById('c-upload-zone')
+  zone.innerHTML = `
+    <input type="file" id="c-img-file" accept="image/*" onchange="previewCredImg(event)" onclick="event.stopPropagation()"/>
+    <div id="c-upload-hint">📎 點擊或拖曳上傳圖片</div>`
+  zone.onclick = () => document.getElementById('c-img-file').click()
+}
+
 function openAddCred() {
   editCredId=null
   document.getElementById('cred-modal-title').textContent='新增憑證'
   ;['c-type','c-confirm','c-title','c-desc','c-link','c-from','c-until'].forEach(id=>{
     const el=document.getElementById(id); if(el.tagName==='SELECT') el.value='flight'; else el.value=''
   })
+  resetCredUpload()
   document.getElementById('cred-del-btn').style.display='none'
   document.getElementById('cred-overlay').classList.remove('hidden')
 }
@@ -1474,15 +1545,39 @@ function openEditCred(id) {
   document.getElementById('c-link').value    = c.link_url||''
   document.getElementById('c-from').value    = c.valid_from||''
   document.getElementById('c-until').value   = c.valid_until||''
+  resetCredUpload(c.image_url || null)
   document.getElementById('cred-del-btn').style.display='inline-flex'
   document.getElementById('cred-overlay').classList.remove('hidden')
 }
 
-function closeCredModal() { document.getElementById('cred-overlay').classList.add('hidden') }
+function closeCredModal() {
+  document.getElementById('cred-overlay').classList.add('hidden')
+  credImgFile = null; credImgUrl = null
+}
 
 async function saveCred() {
   const title=document.getElementById('c-title').value.trim()
   if (!title) { document.getElementById('c-title').focus(); return }
+
+  // Upload image if new file selected
+  let imageUrl = credImgUrl   // keep existing or null
+  if (credImgFile) {
+    const saveBtn = document.getElementById('cred-save-btn')
+    saveBtn.disabled = true
+    saveBtn.innerHTML = '<span class="upload-spinner"></span>上傳中...'
+    const ext  = credImgFile.name.split('.').pop()
+    const path = `cred-${Date.now()}.${ext}`
+    const { data: upData, error: upErr } = await db.storage
+      .from('cred-images').upload(path, credImgFile, { upsert: true })
+    saveBtn.disabled = false; saveBtn.innerHTML = '儲存'
+    if (upErr) { toast(`❌ 圖片上傳失敗：${upErr.message}`); return }
+    const { data: pubData } = db.storage.from('cred-images').getPublicUrl(path)
+    imageUrl = pubData.publicUrl
+  } else if (credImgUrl === null && editCredId) {
+    // user cleared the image — set to null
+    imageUrl = null
+  }
+
   const payload = {
     type:                document.getElementById('c-type').value,
     title,
@@ -1491,6 +1586,7 @@ async function saveCred() {
     link_url:            document.getElementById('c-link').value.trim()||null,
     valid_from:          document.getElementById('c-from').value||null,
     valid_until:         document.getElementById('c-until').value||null,
+    image_url:           imageUrl,
   }
   const { error } = editCredId
     ? await db.from('credentials').update(payload).eq('id', editCredId)
@@ -1501,6 +1597,12 @@ async function saveCred() {
 
 async function deleteCred() {
   if (!editCredId||!confirm('確定要刪除這個憑證嗎？')) return
+  // Delete image from storage if exists
+  const c = creds.find(x=>x.id===editCredId)
+  if (c?.image_url) {
+    const path = c.image_url.split('/cred-images/')[1]
+    if (path) await db.storage.from('cred-images').remove([path])
+  }
   await db.from('credentials').delete().eq('id',editCredId)
   closeCredModal()
 }
