@@ -734,6 +734,13 @@
 <div id="day-overlay" class="overlay hidden">
   <div class="modal-box">
     <div class="modal-title">✏️ 編輯當日標題</div>
+    <div class="form-group">
+      <label>代表 Emoji</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="d-icon" type="text" placeholder="🏝" maxlength="2" style="width:64px;font-size:1.4rem;text-align:center;padding:4px 6px"/>
+        <div id="d-icon-presets" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label>日期</label>
@@ -770,6 +777,8 @@ const db = createClient(SUPA_URL, SUPA_KEY)
 // STATE
 // ════════════════════════════════════════════════════
 const COLORS = ['#0077b6','#f77f00','#52b788','#7c3aed','#dc2626','#0891b2','#d97706','#059669']
+const _DEF_ICONS = {1:'🗺',2:'🏖',3:'🦈',4:'🕊️',5:'🏝'}
+function DEFAULT_DAY_ICON(n) { return _DEF_ICONS[n] || '📍' }
 // ── Storage helpers：localStorage 為主，cookie 為副（應對不同部署環境）──
 function saveUser(name, color) {
   // localStorage（本機 file:// 及 https:// 皆有效）
@@ -997,7 +1006,6 @@ function closeMobMenu() { document.getElementById('sidebar').classList.remove('o
 // TABS & ROUTING
 // ════════════════════════════════════════════════════
 function renderTabs() {
-  const DAY_ICONS = ['🗺','🏖','🦈','🕊️','🏝']
   // Sidebar nav
   document.getElementById('sb-nav').innerHTML =
     days.map((d,i) => {
@@ -1069,11 +1077,10 @@ function renderDay() {
     timelineHtml = '<div class="empty">還沒有行程，點下方按鈕新增！</div>'
   }
 
-  const DAY_ICONS = {1:'🗺',2:'🏖',3:'🦈',4:'🕊️',5:'🏝'}
   document.getElementById('main').innerHTML = `
     <div class="day-hero panel-anim">
       <div class="day-cover" style="background:${day.color}"></div>
-      <div class="day-icon">${DAY_ICONS[day.day_number]||'📍'}</div>
+      <div class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</div>
       <div class="day-title-row">
         <h1 class="day-h1">${day.title}</h1>
         <button class="btn btn-sm" onclick="openEditDay()" title="編輯標題">✏️</button>
@@ -1520,14 +1527,35 @@ document.getElementById('day-overlay').addEventListener('click',  e=>{ if(e.targ
 // DAY EDIT
 // ════════════════════════════════════════════════════
 
+const DAY_ICON_PRESETS = ['🗺','🏖','🦈','🕊️','🏝','🏯','🌺','🤿','🚗','🛍️','🍜','🌊','🎡','🏄','🌙','☀️','🎭','🍱']
+
 function openEditDay() {
   const day = days.find(d => d.day_number === curDay)
   if (!day) return
+  const curIcon = day.icon || DEFAULT_DAY_ICON(day.day_number)
+  document.getElementById('d-icon').value  = curIcon
   document.getElementById('d-date').value  = day.trip_date || ''
   document.getElementById('d-title').value = day.title || ''
   document.getElementById('d-theme').value = day.theme || ''
+  // render preset buttons
+  document.getElementById('d-icon-presets').innerHTML = DAY_ICON_PRESETS.map(e =>
+    `<button type="button" onclick="pickDayIcon('${e}')" title="${e}"
+      style="font-size:1.3rem;background:${curIcon===e?'var(--accent-lt)':'none'};
+      border:1.5px solid ${curIcon===e?'var(--accent)':'var(--border)'};
+      border-radius:var(--r-md);padding:2px 5px;cursor:pointer;line-height:1.4">${e}</button>`
+  ).join('')
   document.getElementById('day-overlay').classList.remove('hidden')
   setTimeout(() => document.getElementById('d-title').select(), 50)
+}
+
+function pickDayIcon(emoji) {
+  document.getElementById('d-icon').value = emoji
+  // update preset highlight
+  document.querySelectorAll('#d-icon-presets button').forEach(btn => {
+    const active = btn.textContent === emoji
+    btn.style.background     = active ? 'var(--accent-lt)' : 'none'
+    btn.style.borderColor    = active ? 'var(--accent)'    : 'var(--border)'
+  })
 }
 
 
@@ -1540,6 +1568,7 @@ async function saveDay() {
   if (!day) return
   const payload = {
     title,
+    icon:      document.getElementById('d-icon').value.trim() || null,
     theme:     document.getElementById('d-theme').value.trim() || null,
     trip_date: document.getElementById('d-date').value || null,
   }
