@@ -163,14 +163,16 @@
     .mob-hdr-title { font-weight: 600; font-size: .9rem; flex: 1; }
     .mob-presence  { display: flex; gap: 4px; }
 
-    /* ── MOBILE BOTTOM TABS ── */
+    /* ── MOBILE TOP TABS ── */
+    --tab-bar: 62px;
     .mob-tabs {
       display: none;
-      position: fixed; bottom: 0; left: 0; right: 0;
-      height: 66px;
+      position: fixed; left: 0; right: 0;
+      top: var(--mob-bar);          /* sits right below mob-header */
+      height: var(--tab-bar);
       background: var(--bg);
-      border-top: 1px solid var(--border);
-      z-index: 150;
+      border-bottom: 1px solid var(--border);
+      z-index: 149;
       overflow-x: auto;
       scrollbar-width: none;
     }
@@ -183,23 +185,23 @@
     .mob-tab {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 0 12px; gap: 1px;
+      padding: 0 14px; gap: 0;
       border: none; background: none; cursor: pointer;
       color: var(--muted); white-space: nowrap;
-      min-width: 60px; transition: color .15s;
-      border-top: 2px solid transparent;
+      min-width: 64px; transition: color .15s;
+      border-bottom: 2px solid transparent;
       font-family: var(--font);
     }
-    .mob-tab:hover  { color: var(--text); }
-    .mob-tab.active { color: var(--accent); border-top-color: var(--accent); }
-    .mt-date   { font-size: .72rem; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
-    .mt-day    { font-size: .6rem;  font-weight: 500; line-height: 1.2; }
-    .mt-week   { font-size: .65rem; font-weight: 600; line-height: 1.2; }
-    .mt-icon   { font-size: 1.1rem; line-height: 1.4; }
-    /* today highlight ring */
+    .mob-tab:hover  { color: var(--text); background: var(--hover); }
+    .mob-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-lt); }
+    .mt-dayn  { font-size: .62rem; font-weight: 600; line-height: 1.5; color: inherit; opacity: .75; }
+    .mt-date  { font-size: .78rem; font-weight: 700; line-height: 1.35; letter-spacing: -.01em; }
+    .mt-week  { font-size: .62rem; font-weight: 500; line-height: 1.4; opacity: .8; }
+    .mt-icon  { font-size: 1rem; line-height: 1.5; }
+    /* today: date pill highlight */
     .mob-tab.today .mt-date {
       background: var(--accent); color: #fff;
-      border-radius: 4px; padding: 1px 5px;
+      border-radius: 4px; padding: 0 5px;
     }
 
     /* Sidebar overlay for mobile */
@@ -533,7 +535,7 @@
       .content-area { margin-left: 0; }
       .mob-header { display: flex; }
       .mob-tabs   { display: block; }
-      main { padding: calc(var(--mob-bar) + 16px) 16px calc(66px + 16px); }
+      main { padding: calc(var(--mob-bar) + 62px + 16px) 16px 32px; }
       .form-row { grid-template-columns: 1fr; }
     }
     @media (min-width: 769px) {
@@ -595,15 +597,15 @@
     <div class="mob-presence" id="presence-bar-mob"></div>
   </div>
 
+  <!-- Mobile top tabs (below header) -->
+  <nav class="mob-tabs"><div class="mob-tabs-inner" id="mob-tabs-inner"></div></nav>
+
   <!-- Content -->
   <div class="content-area">
     <main id="main">
       <div class="loading"><div class="spinner"></div><br>載入行程中...</div>
     </main>
   </div>
-
-  <!-- Mobile bottom tabs -->
-  <nav class="mob-tabs"><div class="mob-tabs-inner" id="mob-tabs-inner"></div></nav>
 
 </div>
 
@@ -1017,33 +1019,31 @@ function renderTabs() {
       <span class="sb-day-n">機票・租車</span>
     </button>`
 
-  // Mobile bottom tabs
-  const WEEK_CN = ['日','一','二','三','四','五','六']
+  // Mobile top tabs
+  const WEEK_CN  = ['日','一','二','三','四','五','六']
   const todayStr = new Date().toISOString().slice(0,10)
   document.getElementById('mob-tabs-inner').innerHTML =
     days.map(d => {
-      const isActive  = curTab==='day' && curDay===d.day_number
-      const isToday   = d.trip_date && d.trip_date === todayStr
-      let dateHtml
+      const isActive = curTab==='day' && curDay===d.day_number
+      let row1, row2, row3
       if (d.trip_date) {
-        const dt    = new Date(d.trip_date + 'T00:00:00')   // avoid timezone shift
-        const month = dt.getMonth() + 1
-        const date  = dt.getDate()
-        const week  = WEEK_CN[dt.getDay()]
-        dateHtml = `
-          <span class="mt-date">${month}/${date}</span>
-          <span class="mt-day">Day ${d.day_number}</span>
-          <span class="mt-week">${week}</span>`
+        const dt   = new Date(d.trip_date + 'T00:00:00')
+        const isToday = d.trip_date === todayStr
+        row1 = `<span class="mt-dayn">Day ${d.day_number}</span>`
+        row2 = `<span class="mt-date">${dt.getMonth()+1}/${dt.getDate()}</span>`
+        row3 = `<span class="mt-week">${WEEK_CN[dt.getDay()]}</span>`
+        return `<button class="mob-tab ${isActive?'active':''} ${isToday?'today':''}" onclick="goDay(${d.day_number})">${row1}${row2}${row3}</button>`
       } else {
-        dateHtml = `
-          <span class="mt-icon">📍</span>
-          <span class="mt-day">Day ${d.day_number}</span>`
+        return `<button class="mob-tab ${isActive?'active':''}" onclick="goDay(${d.day_number})">
+          <span class="mt-dayn">Day ${d.day_number}</span>
+          <span class="mt-icon">—</span>
+        </button>`
       }
-      return `<button class="mob-tab ${isActive?'active':''} ${isToday?'today':''}" onclick="goDay(${d.day_number})">${dateHtml}</button>`
     }).join('') +
     `<button class="mob-tab ${curTab==='cred'?'active':''}" onclick="goCreds()">
+      <span class="mt-dayn">旅行</span>
       <span class="mt-icon">🗂</span>
-      <span class="mt-day">憑證</span>
+      <span class="mt-week">憑證</span>
     </button>`
 }
 function goDay(n) { curDay=n; curTab='day'; renderTabs(); renderPanel() }
