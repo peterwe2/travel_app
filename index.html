@@ -364,21 +364,39 @@ const db = createClient(SUPA_URL, SUPA_KEY)
 // STATE
 // ════════════════════════════════════════════════════
 const COLORS = ['#0077b6','#f77f00','#52b788','#7c3aed','#dc2626','#0891b2','#d97706','#059669']
-// ── Cookie helpers (expires 90 days) ──
-function setCookie(name, val, days=90) {
-  const exp = new Date(Date.now() + days*864e5).toUTCString()
-  document.cookie = `${name}=${encodeURIComponent(val)};expires=${exp};path=/;SameSite=Lax`
+// ── Storage helpers：localStorage 為主，cookie 為副（應對不同部署環境）──
+function saveUser(name, color) {
+  // localStorage（本機 file:// 及 https:// 皆有效）
+  localStorage.setItem('ok_name',  name)
+  localStorage.setItem('ok_color', color)
+  // cookie 備援（https:// 環境）
+  try {
+    const exp = new Date(Date.now() + 90*864e5).toUTCString()
+    document.cookie = `ok_name=${encodeURIComponent(name)};expires=${exp};path=/;SameSite=Lax`
+    document.cookie = `ok_color=${encodeURIComponent(color)};expires=${exp};path=/;SameSite=Lax`
+  } catch(_) {}
 }
-function getCookie(name) {
-  const m = document.cookie.match('(?:^|; )'+name+'=([^;]*)')
-  return m ? decodeURIComponent(m[1]) : null
+function loadUser(key) {
+  // 優先 localStorage
+  const ls = localStorage.getItem(key)
+  if (ls) return ls
+  // fallback cookie
+  try {
+    const m = document.cookie.match('(?:^|; )'+key+'=([^;]*)')
+    return m ? decodeURIComponent(m[1]) : null
+  } catch(_) { return null }
 }
-function deleteCookie(name) {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+function clearUser() {
+  localStorage.removeItem('ok_name')
+  localStorage.removeItem('ok_color')
+  try {
+    document.cookie = 'ok_name=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/'
+    document.cookie = 'ok_color=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/'
+  } catch(_) {}
 }
 
-let userName  = getCookie('ok_name')
-let userColor = getCookie('ok_color') || COLORS[0]
+let userName  = loadUser('ok_name')
+let userColor = loadUser('ok_color') || COLORS[0]
 let curDay = 1, curTab = 'day', credFilter = 'all'
 let editEvtId = null, editCredId = null, editDayId = null
 let days = [], evtMap = {}, creds = [], online = []
@@ -443,7 +461,10 @@ const SEED_CREDS = [
 // ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   initColorRow()
-  if (userName) startApp()
+  if (userName) {
+    document.getElementById('name-overlay').classList.add('hidden')
+    startApp()
+  }
   document.getElementById('name-inp').addEventListener('keydown', e => { if (e.key==='Enter') confirmName() })
 })
 
@@ -461,8 +482,7 @@ function confirmName() {
   const v = document.getElementById('name-inp').value.trim()
   if (!v) { document.getElementById('name-inp').focus(); return }
   userName = v
-  setCookie('ok_name', v)
-  setCookie('ok_color', userColor)
+  saveUser(v, userColor)
   document.getElementById('name-overlay').classList.add('hidden')
   startApp()
 }
@@ -928,8 +948,7 @@ document.getElementById('evt-overlay').addEventListener('click',  e=>{ if(e.targ
 document.getElementById('cred-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('cred-overlay')) closeCredModal() })
 
 function changeUser() {
-  deleteCookie('ok_name')
-  deleteCookie('ok_color')
+  clearUser()
   userName  = null
   userColor = COLORS[0]
   // 重設輸入框
