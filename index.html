@@ -840,7 +840,8 @@ function closeEvtModal() { document.getElementById('evt-overlay').classList.add(
 async function saveEvt() {
   const title=document.getElementById('f-title').value.trim()
   if (!title) { document.getElementById('f-title').focus(); return }
-  // Merge new text with existing done states (preserve checked status on edit)
+
+  // Merge checklist items — preserve existing done state by matching text
   let existingCl = []
   if (editEvtId) {
     let e=null; Object.values(evtMap).forEach(arr=>{const f=arr.find(x=>x.id===editEvtId); if(f) e=f})
@@ -868,12 +869,38 @@ async function saveEvt() {
     checklist:       clItems,
     updated_at:      new Date().toISOString(),
   }
+
+  let error
   if (editEvtId) {
-    await db.from('events').update(payload).eq('id',editEvtId)
+    ;({ error } = await db.from('events').update(payload).eq('id', editEvtId))
   } else {
-    payload.day_id=editDayId; payload.order_index=(evtMap[curDay]||[]).length+1; payload.created_by=userName
-    await db.from('events').insert(payload)
+    payload.day_id      = editDayId
+    payload.order_index = (evtMap[curDay]||[]).length + 1
+    payload.created_by  = userName
+    ;({ error } = await db.from('events').insert(payload))
   }
+
+  if (error) {
+    // checklist 欄位不存在時，移除後重試
+    if (error.code === '42703' || error.message?.includes('checklist')) {
+      delete payload.checklist
+      let editEvtIdCopy = editEvtId
+      if (editEvtIdCopy) {
+        ;({ error } = await db.from('events').update(payload).eq('id', editEvtIdCopy))
+      } else {
+        ;({ error } = await db.from('events').insert(payload))
+      }
+      if (!error) {
+        toast('⚠️ 儲存成功，但請在 Supabase SQL Editor 執行：\nalter table events add column if not exists checklist jsonb default \'[]\'::jsonb;')
+      }
+    }
+    if (error) {
+      toast(`❌ 儲存失敗：${error.message}`)
+      console.error('saveEvt error:', error)
+      return
+    }
+  }
+
   closeEvtModal()
 }
 
@@ -925,8 +952,10 @@ async function saveCred() {
     valid_from:          document.getElementById('c-from').value||null,
     valid_until:         document.getElementById('c-until').value||null,
   }
-  if (editCredId) await db.from('credentials').update(payload).eq('id',editCredId)
-  else await db.from('credentials').insert(payload)
+  const { error } = editCredId
+    ? await db.from('credentials').update(payload).eq('id', editCredId)
+    : await db.from('credentials').insert(payload)
+  if (error) { toast(`❌ 儲存失敗：${error.message}`); console.error('saveCred error:', error); return }
   closeCredModal()
 }
 
