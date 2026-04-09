@@ -1168,8 +1168,8 @@ function renderDay() {
       </div>
       <div class="day-theme">${day.theme||''}</div>
       <div class="day-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題">編輯</button>
         ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">查看今日路線</a>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題" style="margin-left:auto">編輯</button>
       </div>
     </div>
     <div class="timeline">${timelineHtml}</div>
