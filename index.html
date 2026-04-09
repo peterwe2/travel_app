@@ -114,6 +114,21 @@
     .add-btn { display: flex; align-items: center; gap: .5rem; padding: .75rem 1.1rem; background: #fff; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 600; width: 100%; margin-top: .7rem; transition: all .2s; }
     .add-btn:hover { border-color: var(--ocean); color: var(--ocean); background: #f0f8ff; }
 
+    /* ── DRIVING CONNECTOR ── */
+    .drive-connector { display: flex; align-items: center; margin: .1rem 0 .1rem 50px; padding: 0 0 0 1.6rem; position: relative; }
+    .drive-connector::before { content:''; position:absolute; left:5px; top:0; bottom:0; width:2px; background: linear-gradient(to bottom,var(--ocean),var(--green)); opacity:.35; }
+    .drive-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: #f0f9ff; border: 1px solid #bae6fd;
+      border-radius: 20px; padding: .28rem .85rem;
+      font-size: .76rem; color: #0369a1; font-weight: 600;
+      cursor: pointer; transition: background .18s;
+    }
+    .drive-pill:hover { background: #e0f2fe; }
+    .drive-pill.loading { color: #94a3b8; border-color: var(--border); background: #f8fafc; cursor: default; animation: pulse 1.2s infinite; }
+    .drive-pill.no-data { color: #94a3b8; border-color: var(--border); background: #f8fafc; cursor: default; font-size: .7rem; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
     /* ── CHECKLIST ── */
     .checklist-section { padding: .3rem 1rem .7rem; border-top: 1px solid var(--border); }
     .checklist-label { font-size: .74rem; font-weight: 700; color: var(--muted); margin-bottom: .45rem; display: flex; align-items: center; justify-content: space-between; }
@@ -603,19 +618,96 @@ function renderDay() {
   const routeUrl = buildRoute(evts)
   const light = lighten(day.color)
 
+  let timelineHtml = ''
+  if (evts.length) {
+    evts.forEach((e, i) => {
+      timelineHtml += evtCard(e, day)
+      if (i < evts.length - 1) {
+        const next = evts[i + 1]
+        timelineHtml += driveConnector(e, next)
+      }
+    })
+  } else {
+    timelineHtml = '<div class="empty">還沒有行程，點下方按鈕新增！</div>'
+  }
+
   document.getElementById('main').innerHTML = `
     <div class="day-hero" style="background:linear-gradient(135deg,${day.color},${light})">
       <div><h2>${day.title}</h2><p>${day.theme}</p></div>
       ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">🗺 查看今日路線</a>` : ''}
     </div>
-    <div class="timeline">
-      ${evts.length ? evts.map(e => evtCard(e, day)).join('') : '<div class="empty">還沒有行程，點下方按鈕新增！</div>'}
-    </div>
+    <div class="timeline">${timelineHtml}</div>
     <button class="add-btn" onclick="openAddEvt('${day.id}')">＋ 新增行程事件</button>
   `
+  // Fetch driving info for all connectors after render
+  evts.forEach((e, i) => {
+    if (i < evts.length - 1) fetchDriving(e, evts[i + 1])
+  })
 }
 
 const TYPE_CN = {meal:'餐廳',attraction:'景點',activity:'活動',transport:'交通',accommodation:'住宿'}
+
+/* ── DRIVING DISTANCE ── */
+const driveCache = {}   // key: "lat1,lng1->lat2,lng2"
+
+function driveKey(a, b) { return `${a.lat},${a.lng}->${b.lat},${b.lng}` }
+
+function driveConnector(a, b) {
+  if (!a.lat || !a.lng || !b.lat || !b.lng) return ''
+  const key = driveKey(a, b)
+  const id  = `drive-${key.replace(/[^0-9.]/g,'_')}`
+  const cached = driveCache[key]
+  let inner
+  if (cached === 'err') {
+    inner = `<span class="drive-pill no-data">📍 無法取得距離</span>`
+  } else if (cached) {
+    inner = drivePillHtml(cached, a, b)
+  } else {
+    inner = `<span class="drive-pill loading" id="${id}">🚗 計算中...</span>`
+  }
+  return `<div class="drive-connector">${inner}</div>`
+}
+
+function drivePillHtml(data, a, b) {
+  const dirUrl = `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}`
+  return `<a class="drive-pill" href="${dirUrl}" target="_blank" title="在 Google Maps 開啟導航">
+    🚗 ${data.dist} &nbsp;·&nbsp; 🕐 ${data.time}
+  </a>`
+}
+
+async function fetchDriving(a, b) {
+  if (!a.lat || !a.lng || !b.lat || !b.lng) return
+  const key = driveKey(a, b)
+  if (driveCache[key]) return   // already cached
+  driveCache[key] = null        // mark in-flight
+  const id = `drive-${key.replace(/[^0-9.]/g,'_')}`
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
+    const res  = await fetch(url)
+    const json = await res.json()
+    if (json.code !== 'Ok' || !json.routes?.length) throw new Error('no route')
+
+    const meters  = json.routes[0].distance
+    const seconds = json.routes[0].duration
+    const dist = meters  < 1000 ? `${Math.round(meters)} m` : `${(meters/1000).toFixed(1)} km`
+    const time = seconds < 60   ? `${Math.round(seconds)} 秒`
+               : seconds < 3600 ? `${Math.round(seconds/60)} 分鐘`
+               : `${Math.floor(seconds/3600)} 小時 ${Math.round((seconds%3600)/60)} 分鐘`
+
+    driveCache[key] = { dist, time }
+  } catch(_) {
+    driveCache[key] = 'err'
+  }
+
+  // Update DOM element if it still exists
+  const el = document.getElementById(id)
+  if (!el) return
+  const pill = driveCache[key] === 'err'
+    ? `<span class="drive-pill no-data">📍 無法取得距離</span>`
+    : drivePillHtml(driveCache[key], a, b)
+  el.closest('.drive-connector').innerHTML = pill
+}
 
 function evtCard(e, day) {
   const mapsHref = e.google_maps_url || (e.lat&&e.lng ? `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}` : '')
