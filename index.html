@@ -280,24 +280,48 @@
     .timeline { position: relative; }
     .timeline::before {
       content:''; position:absolute;
-      left: 42px; top: 0; bottom: 0;
+      left: 66px; top: 0; bottom: 0;
       width: 1px; background: var(--border);
     }
-    .tl-item { display: flex; gap: 10px; margin-bottom: 8px; }
+    .tl-item { display: flex; gap: 0; margin-bottom: 10px; align-items: stretch; }
     .tl-time {
-      width: 36px; flex-shrink: 0;
-      text-align: right;
-      font-size: .7rem; font-weight: 600;
-      color: var(--muted);
-      padding-top: 14px;
+      width: 56px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      align-items: flex-end;
+      padding-top: 13px;
+      padding-right: 0;
+      gap: 0;
+    }
+    .tl-time-start {
+      font-size: .72rem; font-weight: 700;
+      color: var(--text);
       font-variant-numeric: tabular-nums;
       letter-spacing: -.01em;
+      line-height: 1.3;
     }
-    .tl-dot-wrap { flex-shrink: 0; padding-top: 15px; }
+    .tl-time-end {
+      font-size: .66rem; font-weight: 400;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.3;
+    }
+    .tl-dot-wrap {
+      flex-shrink: 0; width: 21px;
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding-top: 16px;
+    }
     .tl-dot {
-      width: 10px; height: 10px; border-radius: 50%;
+      width: 9px; height: 9px; border-radius: 50%;
       background: var(--bg);
       border: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tl-dot-line {
+      width: 1px; flex: 1;
+      background: var(--border);
+      margin-top: 3px;
+      min-height: 0;
     }
 
     /* Event block (Notion-style flat block) */
@@ -320,7 +344,6 @@
       padding: 2px 7px; border-radius: 3px;
       letter-spacing: .02em;
     }
-    .evt-timerange { font-size: .72rem; color: var(--muted); }
     .evt-desc { font-size: .84rem; color: #5c5c5a; padding: 0 13px 8px; line-height: 1.6; }
     .evt-addr {
       display: flex; align-items: center; gap: 5px;
@@ -364,12 +387,13 @@
     /* ── DRIVING CONNECTOR ── */
     .drive-connector {
       display: flex; align-items: center;
-      margin: 2px 0 2px 48px;
-      padding-left: 16px;
+      margin: 0 0 0 56px;
+      padding-left: 25px;
       position: relative;
+      min-height: 14px;
     }
     .drive-connector::before {
-      content:''; position:absolute; left: 4px; top: 0; bottom: 0;
+      content:''; position:absolute; left: 10px; top: 0; bottom: 0;
       width: 1px; background: var(--border);
     }
     .drive-pill {
@@ -1186,20 +1210,25 @@ async function fetchDriving(a, b) {
 function evtCard(e, day) {
   const mapsHref = e.google_maps_url || (e.lat&&e.lng ? `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}` : '')
   const embedUrl = e.lat&&e.lng ? `https://maps.google.com/maps?q=${e.lat},${e.lng}&z=15&output=embed&hl=zh-TW` : ''
-  const timeStr = e.time_start ? e.time_start.slice(0,5) : '--:--'
-  const timeEnd = e.time_end ? '~ '+e.time_end.slice(0,5) : ''
+  const timeStr = e.time_start ? e.time_start.slice(0,5) : '—'
+  const timeEnd = e.time_end   ? e.time_end.slice(0,5)   : ''
   return `
   <div class="tl-item">
-    <div class="tl-time">${timeStr}</div>
-    <div class="tl-dot-wrap"><div class="tl-dot" style="border-color:${day.color}"></div></div>
-    <div class="evt-card">
+    <div class="tl-time">
+      <span class="tl-time-start">${timeStr}</span>
+      ${timeEnd ? `<span class="tl-time-end">${timeEnd}</span>` : ''}
+    </div>
+    <div class="tl-dot-wrap">
+      <div class="tl-dot" style="border-color:${day.color}"></div>
+      <div class="tl-dot-line"></div>
+    </div>
+    <div class="evt-card" style="margin-left:8px">
       <div class="evt-head">
         <div class="evt-emoji">${e.emoji||'📍'}</div>
         <div class="evt-info">
           <div class="evt-title">${e.title}</div>
           <div class="evt-meta">
             <span class="type-badge t-${e.type}">${TYPE_CN[e.type]||e.type}</span>
-            ${timeEnd ? `<span class="evt-timerange">${timeEnd}</span>` : ''}
           </div>
         </div>
       </div>
