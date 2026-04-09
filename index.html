@@ -114,6 +114,26 @@
     .add-btn { display: flex; align-items: center; gap: .5rem; padding: .75rem 1.1rem; background: #fff; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 600; width: 100%; margin-top: .7rem; transition: all .2s; }
     .add-btn:hover { border-color: var(--ocean); color: var(--ocean); background: #f0f8ff; }
 
+    /* ── CHECKLIST ── */
+    .checklist-section { padding: .3rem 1rem .7rem; border-top: 1px solid var(--border); }
+    .checklist-label { font-size: .74rem; font-weight: 700; color: var(--muted); margin-bottom: .45rem; display: flex; align-items: center; justify-content: space-between; }
+    .cl-progress { font-size: .7rem; color: var(--ocean); font-weight: 700; }
+    .cl-item { display: flex; align-items: center; gap: .5rem; padding: .28rem 0; }
+    .cl-cb { width: 15px; height: 15px; accent-color: var(--ocean); cursor: pointer; flex-shrink: 0; }
+    .cl-text { font-size: .84rem; color: var(--text); line-height: 1.4; flex: 1; transition: color .2s; }
+    .cl-text.done { text-decoration: line-through; color: #94a3b8; }
+    /* modal checklist */
+    .fcl-wrap { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: .55rem .7rem; }
+    .fcl-item { display: flex; align-items: center; gap: .4rem; margin-bottom: .35rem; }
+    .fcl-item:last-child { margin-bottom: 0; }
+    .fcl-inp { flex: 1; padding: .38rem .6rem; border: 1.5px solid var(--border); border-radius: 6px; font-size: .86rem; font-family: inherit; }
+    .fcl-inp:focus { outline: none; border-color: var(--ocean); }
+    .fcl-del { background: none; border: none; color: #dc2626; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0 .15rem; opacity: .6; }
+    .fcl-del:hover { opacity: 1; }
+    .fcl-add { display: flex; align-items: center; gap: .3rem; background: none; border: none; color: var(--ocean); font-size: .8rem; font-weight: 600; cursor: pointer; padding: .38rem 0 0; }
+    .fcl-add:hover { text-decoration: underline; }
+    .fcl-add:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
+
     /* ── CREDENTIALS ── */
     .cred-filters { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
     .cf-btn { padding: .38rem .95rem; border-radius: 20px; border: 1.5px solid var(--border); background: #fff; font-size: .8rem; font-weight: 600; cursor: pointer; color: var(--muted); transition: all .18s; }
@@ -245,6 +265,13 @@
     <div class="form-group">
       <label>說明</label>
       <textarea id="f-desc" placeholder="景點 / 餐廳特色說明..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>待辦記事 <span style="color:var(--muted);font-weight:400">（最多 10 筆）</span></label>
+      <div class="fcl-wrap">
+        <div id="f-cl-list"></div>
+        <button type="button" class="fcl-add" id="f-cl-add" onclick="addClItem()">＋ 新增記事</button>
+      </div>
     </div>
     <div class="form-group">
       <label>地址</label>
@@ -591,6 +618,7 @@ function evtCard(e, day) {
         </div>
       </div>
       ${e.description ? `<div class="evt-desc">${e.description}</div>` : ''}
+      ${renderChecklist(e)}
       ${e.address ? `<a class="evt-addr" href="${mapsHref||'#'}" target="${mapsHref?'_blank':'_self'}">📍 ${e.address}</a>` : ''}
       <div class="evt-foot">
         <span class="evt-by">by ${e.created_by||'—'}</span>
@@ -604,6 +632,47 @@ function evtCard(e, day) {
 
 function toggleMap(id) {
   document.getElementById('map-'+id)?.classList.toggle('open')
+}
+
+/* ── CHECKLIST CARD RENDER ── */
+function renderChecklist(e) {
+  const items = Array.isArray(e.checklist) ? e.checklist : []
+  if (!items.length) return ''
+  const done = items.filter(i=>i.done).length
+  return `
+  <div class="checklist-section">
+    <div class="checklist-label">
+      <span>📋 待辦記事</span>
+      <span class="cl-progress">${done}/${items.length}</span>
+    </div>
+    ${items.map((item,idx) => `
+      <div class="cl-item">
+        <input type="checkbox" class="cl-cb" ${item.done?'checked':''} onchange="toggleCheck('${e.id}',${idx},this.checked)"/>
+        <span class="cl-text ${item.done?'done':''}" id="cl-text-${e.id}-${idx}">${escHtml(item.text)}</span>
+      </div>`).join('')}
+  </div>`
+}
+
+async function toggleCheck(evtId, idx, checked) {
+  // Find the event across all days
+  let evt = null
+  Object.values(evtMap).forEach(arr => { const f=arr.find(x=>x.id===evtId); if(f) evt=f })
+  if (!evt) return
+  const items = Array.isArray(evt.checklist) ? [...evt.checklist] : []
+  if (!items[idx]) return
+  items[idx] = { ...items[idx], done: checked }
+  // Optimistic UI
+  evt.checklist = items
+  const textEl = document.getElementById(`cl-text-${evtId}-${idx}`)
+  if (textEl) textEl.classList.toggle('done', checked)
+  // Update progress label
+  const section = textEl?.closest('.checklist-section')
+  if (section) {
+    const prog = section.querySelector('.cl-progress')
+    const done = items.filter(i=>i.done).length
+    if (prog) prog.textContent = `${done}/${items.length}`
+  }
+  await db.from('events').update({ checklist: items, updated_at: new Date().toISOString() }).eq('id', evtId)
 }
 
 function buildRoute(evts) {
@@ -663,6 +732,56 @@ function credCard(c) {
 function setCF(f) { credFilter=f; renderCredPanel() }
 
 // ════════════════════════════════════════════════════
+// CHECKLIST MODAL MANAGEMENT
+// ════════════════════════════════════════════════════
+function renderClModal(items) {
+  const list = document.getElementById('f-cl-list')
+  list.innerHTML = items.map((item,i) => `
+    <div class="fcl-item" id="fcl-row-${i}">
+      <input class="fcl-inp" type="text" placeholder="記事內容..." value="${escHtml(item.text)}" maxlength="60" id="fcl-inp-${i}"/>
+      <button type="button" class="fcl-del" onclick="removeClItem(${i})" title="刪除">×</button>
+    </div>`).join('')
+  document.getElementById('f-cl-add').disabled = items.length >= 10
+}
+
+function getClItems() {
+  const rows = document.querySelectorAll('#f-cl-list .fcl-item')
+  return Array.from(rows).map((row, i) => {
+    const inp = document.getElementById(`fcl-inp-${i}`)
+    return inp ? { text: inp.value.trim(), done: false } : null
+  }).filter(x => x && x.text)
+}
+
+function addClItem() {
+  const rows = document.querySelectorAll('#f-cl-list .fcl-item')
+  if (rows.length >= 10) return
+  const i = rows.length
+  const div = document.createElement('div')
+  div.className = 'fcl-item'; div.id = `fcl-row-${i}`
+  div.innerHTML = `<input class="fcl-inp" type="text" placeholder="記事內容..." maxlength="60" id="fcl-inp-${i}"/>
+    <button type="button" class="fcl-del" onclick="removeClItem(${i})" title="刪除">×</button>`
+  document.getElementById('f-cl-list').appendChild(div)
+  document.getElementById(`fcl-inp-${i}`).focus()
+  document.getElementById('f-cl-add').disabled = (i+1) >= 10
+}
+
+function removeClItem(idx) {
+  // Re-collect current values before removing
+  const rows = document.querySelectorAll('#f-cl-list .fcl-item')
+  const vals = Array.from(rows).map((_, i) => {
+    const el = document.getElementById(`fcl-inp-${i}`); return el ? el.value : ''
+  })
+  vals.splice(idx, 1)
+  const items = vals.map(t => ({ text: t, done: false }))
+  renderClModal(items)
+  // Restore done state lost during re-render is not needed here (modal always resets done to false visually)
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ════════════════════════════════════════════════════
 // EVENT CRUD
 // ════════════════════════════════════════════════════
 function openAddEvt(dayId) {
@@ -671,6 +790,7 @@ function openAddEvt(dayId) {
   ;['f-type','f-emoji','f-title','f-tstart','f-tend','f-desc','f-addr','f-lat','f-lng','f-maps'].forEach(id=>{
     const el=document.getElementById(id); if(el.tagName==='SELECT') el.value='attraction'; else el.value=''
   })
+  renderClModal([])
   document.getElementById('evt-del-btn').style.display='none'
   document.getElementById('evt-overlay').classList.remove('hidden')
 }
@@ -690,6 +810,7 @@ function openEditEvt(id) {
   document.getElementById('f-lat').value     = e.lat||''
   document.getElementById('f-lng').value     = e.lng||''
   document.getElementById('f-maps').value    = e.google_maps_url||''
+  renderClModal(Array.isArray(e.checklist) ? e.checklist : [])
   document.getElementById('evt-del-btn').style.display='inline-flex'
   document.getElementById('evt-overlay').classList.remove('hidden')
 }
@@ -699,6 +820,20 @@ function closeEvtModal() { document.getElementById('evt-overlay').classList.add(
 async function saveEvt() {
   const title=document.getElementById('f-title').value.trim()
   if (!title) { document.getElementById('f-title').focus(); return }
+  // Merge new text with existing done states (preserve checked status on edit)
+  let existingCl = []
+  if (editEvtId) {
+    let e=null; Object.values(evtMap).forEach(arr=>{const f=arr.find(x=>x.id===editEvtId); if(f) e=f})
+    existingCl = Array.isArray(e?.checklist) ? e.checklist : []
+  }
+  const clItems = Array.from(document.querySelectorAll('#f-cl-list .fcl-item')).map((_, i) => {
+    const inp = document.getElementById(`fcl-inp-${i}`)
+    const text = inp ? inp.value.trim() : ''
+    if (!text) return null
+    const existing = existingCl.find(x=>x.text===text)
+    return { text, done: existing ? existing.done : false }
+  }).filter(Boolean)
+
   const payload = {
     type:            document.getElementById('f-type').value,
     emoji:           document.getElementById('f-emoji').value.trim()||'📍',
@@ -710,6 +845,7 @@ async function saveEvt() {
     lat:             parseFloat(document.getElementById('f-lat').value)||null,
     lng:             parseFloat(document.getElementById('f-lng').value)||null,
     google_maps_url: document.getElementById('f-maps').value.trim()||null,
+    checklist:       clItems,
     updated_at:      new Date().toISOString(),
   }
   if (editEvtId) {
