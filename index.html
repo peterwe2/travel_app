@@ -178,7 +178,9 @@
       display: flex;
       align-items: flex-end;
       overflow-x: auto;
+      overflow-y: hidden;
       scrollbar-width: none;
+      touch-action: pan-x;
       padding: 10px 10px 0;
       gap: 4px;
       background: var(--sb-bg);
@@ -1225,7 +1227,7 @@ function renderDay() {
       }
     })
   } else {
-    timelineHtml = '<div class="empty">還沒有行程，點下方按鈕新增！</div>'
+    timelineHtml = '<div class="empty">還沒有行程，點擊新增行程按鈕！</div>'
   }
 
   document.getElementById('main').innerHTML = `
