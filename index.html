@@ -529,6 +529,64 @@
     }
     .evt-cred-pill:hover { background: var(--hover); color: var(--text); }
 
+    /* ── PREP PANEL ── */
+    .prep-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 600px) {
+      .prep-grid { grid-template-columns: 1fr; }
+    }
+    .prep-section { margin-bottom: 0; }
+    .prep-section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .prep-section-title {
+      font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;
+    }
+    .prep-progress {
+      font-size: .75rem; color: var(--muted); font-weight: 400;
+    }
+    .prep-list { display: flex; flex-direction: column; gap: 4px; }
+    .prep-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: var(--r-md);
+      border: 1px solid var(--border); background: var(--bg);
+      transition: background .1s;
+    }
+    .prep-item:hover { background: var(--sb-bg); }
+    .prep-item input[type=checkbox] {
+      width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .prep-item-text {
+      flex: 1; font-size: .86rem; color: var(--text); cursor: pointer;
+      outline: none; border: none; background: transparent;
+      font-family: var(--font); padding: 0;
+    }
+    .prep-item-text.done { text-decoration: line-through; color: var(--muted); }
+    .prep-item-del {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; padding: 0 2px; flex-shrink: 0; opacity: 0;
+      transition: opacity .12s;
+    }
+    .prep-item:hover .prep-item-del { opacity: 1; }
+    .prep-item-del:hover { color: var(--red); }
+    .prep-add-row {
+      display: flex; gap: 8px; margin-top: 8px;
+    }
+    .prep-add-inp {
+      flex: 1; padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: var(--r-md); font-family: var(--font);
+      font-size: .86rem; background: var(--bg); color: var(--text);
+    }
+    .prep-add-inp:focus { outline: none; border-color: var(--accent); }
+    .prep-bar { height: 4px; border-radius: 2px; background: var(--faint); margin-bottom: 12px; overflow: hidden; }
+    .prep-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .3s; }
+
     /* ── CREDENTIALS ── */
     .cred-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 16px; }
     .cf-btn {
@@ -1072,7 +1130,7 @@ function confirmName() {
 async function startApp() {
   document.getElementById('app').style.display = 'block'
   await loadDays()
-  await Promise.all([loadAllEvts(), loadCreds()])
+  await Promise.all([loadAllEvts(), loadCreds(), loadPrepItems()])
   setupRealtime()
   setupPresence()
   renderTabs()
@@ -1138,6 +1196,10 @@ function setupRealtime() {
       await loadCreds()
       if (curTab==='cred') renderPanel()
     })
+    .on('postgres_changes',{event:'*',schema:'public',table:'prep_items'}, async () => {
+      await loadPrepItems()
+      if (curTab==='prep') renderPanel()
+    })
     .subscribe()
 }
 
@@ -1185,6 +1247,11 @@ function renderTabs() {
       <span style="font-size:.9rem">🗂</span>
       <span class="sb-label">旅行憑證</span>
       <span class="sb-day-n">機票・租車</span>
+    </button>
+    <button class="sb-item ${curTab==='prep'?'active':''}" onclick="goPrep();closeMobMenu()">
+      <span style="font-size:.9rem">📋</span>
+      <span class="sb-label">行前注意事項</span>
+      <span class="sb-day-n">行李・待辦</span>
     </button>`
 
   // Mobile top tabs
@@ -1212,15 +1279,25 @@ function renderTabs() {
       <span class="mt-dayn">旅行</span>
       <span class="mt-icon">🗂</span>
       <span class="mt-week">憑證</span>
+    </button>
+    <button class="mob-tab ${curTab==='prep'?'active':''}" onclick="goPrep()">
+      <span class="mt-dayn">行前</span>
+      <span class="mt-icon">📋</span>
+      <span class="mt-week">注意</span>
     </button>`
 }
 function goDay(n) { curDay=n; curTab='day'; renderTabs(); renderPanel() }
 function goCreds()  { curTab='cred'; renderTabs(); renderPanel() }
+function goPrep()   { curTab='prep'; renderTabs(); renderPanel() }
 
 // ════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════
-function renderPanel() { curTab==='day' ? renderDay() : renderCredPanel() }
+function renderPanel() {
+  if (curTab==='day')  return renderDay()
+  if (curTab==='cred') return renderCredPanel()
+  if (curTab==='prep') return renderPrepPanel()
+}
 
 /* ── DAY ── */
 function renderDay() {
@@ -1492,6 +1569,89 @@ function buildRoute(evts) {
 function lighten(hex) {
   const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16)
   return `rgb(${Math.min(r+55,255)},${Math.min(g+55,255)},${Math.min(b+55,255)})`
+}
+
+// ════════════════════════════════════════════════════
+// PREP PANEL (行前注意事項)
+// ════════════════════════════════════════════════════
+const PREP_SECTIONS = [
+  { key: 'luggage', icon: '🧳', title: '行李清單', placeholder: '例如：護照、充電器…' },
+  { key: 'todos',   icon: '✅', title: '待辦事項', placeholder: '例如：兌換日幣、確認訂房…' },
+]
+
+let prepItems = []   // [{id, section, text, done, order_index, created_by}]
+
+async function loadPrepItems() {
+  const { data } = await db.from('prep_items').select('*').order('order_index')
+  prepItems = data || []
+}
+
+function prepBySection(key) {
+  return prepItems.filter(i => i.section === key)
+}
+
+function renderPrepPanel() {
+  const sectionsHtml = PREP_SECTIONS.map(s => {
+    const items = prepBySection(s.key)
+    const done  = items.filter(i=>i.done).length
+    const pct   = items.length ? Math.round(done/items.length*100) : 0
+    const itemsHtml = items.map(item => `
+      <div class="prep-item">
+        <input type="checkbox" ${item.done?'checked':''} onchange="togglePrepItem('${item.id}',this.checked)"/>
+        <span class="prep-item-text${item.done?' done':''}" contenteditable="true"
+          onblur="renamePrepItem('${item.id}',this.textContent)">${escHtml(item.text)}</span>
+        <button class="prep-item-del" onclick="deletePrepItem('${item.id}')" title="刪除">×</button>
+      </div>`).join('')
+    return `
+      <div class="prep-section">
+        <div class="prep-section-head">
+          <span class="prep-section-title">${s.icon} ${s.title}</span>
+          <span class="prep-progress">${done}/${items.length} 完成</span>
+        </div>
+        ${items.length ? `<div class="prep-bar"><div class="prep-bar-fill" style="width:${pct}%"></div></div>` : ''}
+        <div class="prep-list">${itemsHtml}</div>
+        <div class="prep-add-row">
+          <input class="prep-add-inp" id="prep-inp-${s.key}" type="text" placeholder="${s.placeholder}"
+            onkeydown="if(event.key==='Enter')addPrepItem('${s.key}')"/>
+          <button class="btn btn-primary btn-sm" onclick="addPrepItem('${s.key}')">＋ 新增</button>
+        </div>
+      </div>`
+  })
+
+  document.getElementById('main').innerHTML = `
+    <div class="panel-anim">
+      <div class="cred-top">
+        <h2>📋 行前注意事項</h2>
+      </div>
+      <div class="prep-grid">
+        ${sectionsHtml[0]}
+        ${sectionsHtml[1]}
+      </div>
+    </div>`
+}
+
+async function addPrepItem(key) {
+  const inp = document.getElementById(`prep-inp-${key}`)
+  const text = inp?.value.trim()
+  if (!text) return
+  inp.value = ''
+  const order_index = prepBySection(key).length + 1
+  const { error } = await db.from('prep_items').insert({ section: key, text, done: false, order_index, created_by: userName })
+  if (error) toast(`❌ 新增失敗：${error.message}`)
+}
+
+async function togglePrepItem(id, done) {
+  await db.from('prep_items').update({ done }).eq('id', id)
+}
+
+async function deletePrepItem(id) {
+  await db.from('prep_items').delete().eq('id', id)
+}
+
+async function renamePrepItem(id, text) {
+  const trimmed = text.trim()
+  if (!trimmed) return
+  await db.from('prep_items').update({ text: trimmed }).eq('id', id)
 }
 
 /* ── CREDENTIALS ── */
