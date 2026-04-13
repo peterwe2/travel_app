@@ -677,6 +677,17 @@
     @media (max-width: 480px) {
       .day-h1 { font-size: 1.35rem; }
     }
+    @media (max-width: 768px) {
+      /* Narrower timeline left rail on mobile */
+      .timeline::before { left: 46px; }
+      .tl-time  { width: 38px; }
+      .tl-time-start { font-size: .68rem; }
+      .tl-time-end   { font-size: .62rem; }
+      .tl-dot-wrap   { width: 16px; }
+      .tl-dot        { width: 8px; height: 8px; }
+      .drive-c-spacer  { width: 38px; }
+      .drive-c-dot-col { width: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -1258,9 +1269,9 @@ const driveCache    = {}   // key: "mode:lat1,lng1->lat2,lng2"
 const driveModeState = {}  // key: coordKey → current mode
 
 const DRIVE_MODES = {
-  driving: { emoji: '🚗', label: '開車',    osrm: 'driving' },
-  foot:    { emoji: '🚶', label: '步行',    osrm: 'foot'    },
-  transit: { emoji: '🚌', label: '公共運輸', osrm: null      },
+  driving: { emoji: '🚗', label: '開車',    base: 'https://router.project-osrm.org/route/v1/driving' },
+  foot:    { emoji: '🚶', label: '步行',    base: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot' },
+  transit: { emoji: '🚌', label: '公共運輸', base: null },
 }
 
 function driveKey(a, b) { return `${a.lat},${a.lng}->${b.lat},${b.lng}` }
@@ -1325,14 +1336,15 @@ function switchDriveMode(safe, mode) {
 
 async function fetchDriving(a, b, mode='driving') {
   if (!a.lat || !a.lng || !b.lat || !b.lng) return
+  if (!DRIVE_MODES[mode]?.base) return
   const key  = driveKey(a, b)
   const ckey = `${mode}:${key}`
   if (driveCache[ckey]) return
   driveCache[ckey] = null   // in-flight
 
   try {
-    const profile = DRIVE_MODES[mode].osrm
-    const url = `https://router.project-osrm.org/route/v1/${profile}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
+    const base = DRIVE_MODES[mode].base
+    const url = `${base}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
     const res  = await fetch(url)
     const json = await res.json()
     if (json.code !== 'Ok' || !json.routes?.length) throw new Error('no route')
