@@ -182,48 +182,59 @@
       scrollbar-width: none;
       touch-action: pan-x;
       padding: 10px 10px 0;
-      gap: 4px;
+      gap: 3px;
       background: var(--sb-bg);
       border-bottom: 1px solid var(--border);
     }
     .day-tabs::-webkit-scrollbar { display: none; }
     .mob-tab {
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 6px 13px; gap: 1px;
+      align-items: center; justify-content: flex-start;
+      padding: 6px 10px 7px;
+      gap: 0;
       border: 1px solid var(--border);
       border-bottom: none;
       cursor: pointer;
       color: var(--muted); white-space: nowrap;
-      min-width: 62px;
+      min-width: 58px;
       border-radius: var(--r-md) var(--r-md) 0 0;
-      background: var(--bg);
+      background: var(--sb-bg);
       font-family: var(--font);
       transition: background .12s, color .12s;
-      height: 52px;
+      height: 88px;
     }
     .mob-tab:hover  { background: var(--hover); color: var(--text); }
-    .mob-tab.active { background: var(--bg); color: var(--text); border-color: var(--border); box-shadow: 0 1px 0 var(--bg); }
-    .mt-dayn {
-      font-size: .63rem; font-weight: 500;
-      color: inherit; opacity: .6;
-      line-height: 1.4; letter-spacing: .01em;
+    .mob-tab.active { background: var(--bg); color: var(--text); border-color: var(--border); box-shadow: 0 2px 0 var(--bg); }
+    /* row 1: month/day */
+    .mt-monthday {
+      font-size: .65rem; font-weight: 500; color: inherit;
+      opacity: .55; line-height: 1.6; letter-spacing: .01em;
     }
-    .mt-date {
-      font-size: .88rem; font-weight: 600;
-      line-height: 1.25; letter-spacing: -.02em;
-      color: inherit;
+    /* row 2: large day-of-month number */
+    .mt-daynum {
+      font-size: 1.45rem; font-weight: 700; color: inherit;
+      line-height: 1.1; letter-spacing: -.03em;
     }
+    .mob-tab.active .mt-daynum { color: var(--text); }
+    .mob-tab.today .mt-daynum {
+      background: var(--text); color: var(--bg);
+      border-radius: 5px; padding: 0 5px;
+    }
+    /* row 3: weekday */
     .mt-week {
       font-size: .63rem; font-weight: 400;
-      line-height: 1.4; color: inherit; opacity: .6;
+      line-height: 1.6; color: inherit; opacity: .55;
     }
-    .mt-icon  { font-size: 1rem; line-height: 1.5; }
-    /* today: date number highlight */
-    .mob-tab.today .mt-date {
-      background: var(--text); color: var(--bg);
-      border-radius: 4px; padding: 0 5px;
+    /* row 4: area badge */
+    .mt-badge {
+      margin-top: 4px;
+      font-size: .62rem; font-weight: 600;
+      padding: 1px 7px; border-radius: 99px;
+      max-width: 56px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
     }
+    /* no-date tab (cred / prep) */
+    .mt-icon  { font-size: 1rem; line-height: 1.5; margin: auto 0; }
 
     /* Mobile header tabs (kept for mobile fallback structure) */
     .mob-tabs { display: none; }
@@ -270,7 +281,7 @@
       line-height: 1.2;
     }
     .day-summary-row {
-      display: flex; align-items: baseline; gap: 6px;
+      display: flex; align-items: baseline; gap: 16px;
       margin-top: 8px; font-size: .86rem;
     }
     .day-summary-label {
@@ -279,7 +290,7 @@
     }
     .day-summary-text { color: var(--text); line-height: 1.5; }
     .day-hotel-row {
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; gap: 16px;
       margin-top: 5px; font-size: .82rem; color: var(--muted);
     }
     .day-hotel-icon { font-size: .85rem; }
@@ -1271,33 +1282,43 @@ function renderTabs() {
   // Mobile top tabs
   const WEEK_CN  = ['日','一','二','三','四','五','六']
   const todayStr = new Date().toISOString().slice(0,10)
+  const BADGE_PALETTE = [
+    {bg:'#fde8d0',c:'#a04800'},{bg:'#d4f0dd',c:'#1a6630'},
+    {bg:'#fce4ec',c:'#b0003a'},{bg:'#e3f2fd',c:'#1255a0'},
+    {bg:'#f3e5f5',c:'#6a1b9a'},{bg:'#fff8e1',c:'#c45000'},
+    {bg:'#e0f7fa',c:'#00606a'},
+  ]
   document.getElementById('mob-tabs-inner').innerHTML =
-    days.map(d => {
-      const isActive = curTab==='day' && curDay===d.day_number
-      let row1, row2, row3
+    days.map((d, i) => {
+      const isActive  = curTab==='day' && curDay===d.day_number
+      const pal = BADGE_PALETTE[i % BADGE_PALETTE.length]
+      // extract area label from title (before ・ if present)
+      const area = d.title ? (d.title.includes('・') ? d.title.split('・')[0] : d.title).slice(0,4) : ''
+      const badge = area ? `<span class="mt-badge" style="background:${pal.bg};color:${pal.c}">${area}</span>` : ''
       if (d.trip_date) {
-        const dt   = new Date(d.trip_date + 'T00:00:00')
+        const dt      = new Date(d.trip_date + 'T00:00:00')
         const isToday = d.trip_date === todayStr
-        row1 = `<span class="mt-dayn">Day ${d.day_number}</span>`
-        row2 = `<span class="mt-date">${dt.getMonth()+1}/${dt.getDate()}</span>`
-        row3 = `<span class="mt-week">${WEEK_CN[dt.getDay()]}</span>`
-        return `<button class="mob-tab ${isActive?'active':''} ${isToday?'today':''}" onclick="goDay(${d.day_number})">${row1}${row2}${row3}</button>`
+        return `<button class="mob-tab ${isActive?'active':''} ${isToday?'today':''}" onclick="goDay(${d.day_number})">
+          <span class="mt-monthday">${dt.getMonth()+1}/${dt.getDate()}</span>
+          <span class="mt-daynum">${String(dt.getDate()).padStart(2,'0')}</span>
+          <span class="mt-week">${WEEK_CN[dt.getDay()]}</span>
+          ${badge}
+        </button>`
       } else {
         return `<button class="mob-tab ${isActive?'active':''}" onclick="goDay(${d.day_number})">
-          <span class="mt-dayn">Day ${d.day_number}</span>
-          <span class="mt-icon">—</span>
+          <span class="mt-monthday">Day ${d.day_number}</span>
+          <span class="mt-daynum" style="font-size:1.1rem">—</span>
+          ${badge}
         </button>`
       }
     }).join('') +
-    `<button class="mob-tab ${curTab==='cred'?'active':''}" onclick="goCreds()">
-      <span class="mt-dayn">旅行</span>
+    `<button class="mob-tab ${curTab==='cred'?'active':''}" onclick="goCreds()" style="justify-content:center">
       <span class="mt-icon">🗂</span>
       <span class="mt-week">憑證</span>
     </button>
-    <button class="mob-tab ${curTab==='prep'?'active':''}" onclick="goPrep()">
-      <span class="mt-dayn">行前</span>
+    <button class="mob-tab ${curTab==='prep'?'active':''}" onclick="goPrep()" style="justify-content:center">
       <span class="mt-icon">📋</span>
-      <span class="mt-week">注意</span>
+      <span class="mt-week">行前</span>
     </button>`
 }
 function goDay(n) { curDay=n; curTab='day'; renderTabs(); renderPanel() }
@@ -1340,12 +1361,11 @@ function renderDay() {
         <button class="btn btn-primary btn-sm" onclick="openAddEvt('${day.id}')" style="margin-left:auto">＋ 新增行程</button>
       </div>
       ${day.theme ? `<div class="day-summary-row">
-        <span class="day-summary-label">摘要</span>
+        <span class="day-summary-label">摘要    </span>
         <span class="day-summary-text">${escHtml(day.theme)}</span>
       </div>` : ''}
       ${day.hotel ? `<div class="day-hotel-row">
-        <span class="day-hotel-icon">🏨</span>
-        <span class="day-summary-label">住宿</span>
+        <span class="day-summary-label">住宿    </span>
         <span class="day-hotel-text">${escHtml(day.hotel)}</span>
       </div>` : ''}
       <div class="day-actions">
