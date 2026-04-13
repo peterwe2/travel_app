@@ -269,11 +269,21 @@
       color: var(--text);
       line-height: 1.2;
     }
-    .day-theme {
-      font-size: .88rem;
-      color: var(--muted);
-      margin-top: 6px;
+    .day-summary-row {
+      display: flex; align-items: baseline; gap: 6px;
+      margin-top: 8px; font-size: .86rem;
     }
+    .day-summary-label {
+      font-size: .72rem; font-weight: 600; color: var(--muted);
+      white-space: nowrap; letter-spacing: .03em; text-transform: uppercase;
+    }
+    .day-summary-text { color: var(--text); line-height: 1.5; }
+    .day-hotel-row {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 5px; font-size: .82rem; color: var(--muted);
+    }
+    .day-hotel-icon { font-size: .85rem; }
+    .day-hotel-text { color: var(--text); font-size: .82rem; }
     .day-actions {
       display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
       margin-top: 12px;
@@ -974,8 +984,12 @@
       </div>
     </div>
     <div class="form-group">
-      <label>副標題 / 主題</label>
-      <input id="d-theme" type="text" placeholder="感受琉球王國歷史文化，漫步國際通" maxlength="40"/>
+      <label>今日摘要</label>
+      <textarea id="d-theme" placeholder="感受琉球王國歷史文化，漫步國際通" rows="2" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label>住宿地點</label>
+      <input id="d-hotel" type="text" placeholder="例如：那霸市 APA Hotel" maxlength="60"/>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeDayModal()">取消</button>
@@ -1325,7 +1339,15 @@ function renderDay() {
         <h1 class="day-h1">${day.title}</h1>
         <button class="btn btn-primary btn-sm" onclick="openAddEvt('${day.id}')" style="margin-left:auto">＋ 新增行程</button>
       </div>
-      <div class="day-theme">${day.theme||''}</div>
+      ${day.theme ? `<div class="day-summary-row">
+        <span class="day-summary-label">摘要</span>
+        <span class="day-summary-text">${escHtml(day.theme)}</span>
+      </div>` : ''}
+      ${day.hotel ? `<div class="day-hotel-row">
+        <span class="day-hotel-icon">🏨</span>
+        <span class="day-summary-label">住宿</span>
+        <span class="day-hotel-text">${escHtml(day.hotel)}</span>
+      </div>` : ''}
       <div class="day-actions">
         ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">查看今日路線</a>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題" style="margin-left:auto">編輯</button>
@@ -2084,6 +2106,7 @@ function openEditDay() {
   document.getElementById('d-date').value  = day.trip_date || ''
   document.getElementById('d-title').value = day.title || ''
   document.getElementById('d-theme').value = day.theme || ''
+  document.getElementById('d-hotel').value = day.hotel || ''
   // render preset buttons
   document.getElementById('d-icon-presets').innerHTML = DAY_ICON_PRESETS.map(e =>
     `<button type="button" onclick="pickDayIcon('${e}')" title="${e}"
@@ -2117,6 +2140,7 @@ async function saveDay() {
     title,
     icon:      document.getElementById('d-icon').value.trim() || null,
     theme:     document.getElementById('d-theme').value.trim() || null,
+    hotel:     document.getElementById('d-hotel').value.trim() || null,
     trip_date: document.getElementById('d-date').value || null,
   }
   const { error } = await db.from('days').update(payload).eq('id', day.id)
