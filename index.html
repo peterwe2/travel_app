@@ -176,65 +176,66 @@
     /* ── DAY TABS ── */
     .day-tabs {
       display: flex;
-      align-items: flex-end;
+      align-items: stretch;
       overflow-x: auto;
       overflow-y: hidden;
       scrollbar-width: none;
       touch-action: pan-x;
-      padding: 10px 10px 0;
-      gap: 3px;
+      padding: 0;
+      gap: 0;
       background: var(--sb-bg);
       border-bottom: 1px solid var(--border);
     }
     .day-tabs::-webkit-scrollbar { display: none; }
     .mob-tab {
       display: flex; flex-direction: column;
-      align-items: center; justify-content: flex-start;
-      padding: 6px 10px 7px;
-      gap: 0;
-      border: 1px solid var(--border);
-      border-bottom: none;
+      align-items: center; justify-content: center;
+      padding: 8px 10px 8px;
+      gap: 1px;
+      border: none;
+      border-right: 1px solid var(--border);
       cursor: pointer;
       color: var(--muted); white-space: nowrap;
-      min-width: 58px;
-      border-radius: var(--r-md) var(--r-md) 0 0;
+      min-width: 62px;
+      border-radius: 0;
       background: var(--sb-bg);
       font-family: var(--font);
-      transition: background .12s, color .12s;
-      height: 88px;
+      transition: background .1s;
+      flex-shrink: 0;
     }
-    .mob-tab:hover  { background: var(--hover); color: var(--text); }
-    .mob-tab.active { background: var(--bg); color: var(--text); border-color: var(--border); box-shadow: 0 2px 0 var(--bg); }
-    /* row 1: month/day */
+    .mob-tab:last-child { border-right: none; }
+    .mob-tab:hover  { background: var(--hover); }
+    .mob-tab.active { background: var(--bg); color: var(--text); box-shadow: inset 0 -2px 0 var(--text); }
+    /* row 1: month/day small */
     .mt-monthday {
-      font-size: .65rem; font-weight: 500; color: inherit;
-      opacity: .55; line-height: 1.6; letter-spacing: .01em;
+      font-size: .62rem; font-weight: 500; color: inherit;
+      opacity: .5; line-height: 1.3; letter-spacing: .01em;
     }
     /* row 2: large day-of-month number */
     .mt-daynum {
-      font-size: 1.45rem; font-weight: 700; color: inherit;
-      line-height: 1.1; letter-spacing: -.03em;
+      font-size: 1.5rem; font-weight: 700; color: inherit;
+      line-height: 1.05; letter-spacing: -.04em;
     }
     .mob-tab.active .mt-daynum { color: var(--text); }
     .mob-tab.today .mt-daynum {
       background: var(--text); color: var(--bg);
-      border-radius: 5px; padding: 0 5px;
+      border-radius: 5px; padding: 1px 5px;
     }
     /* row 3: weekday */
     .mt-week {
-      font-size: .63rem; font-weight: 400;
-      line-height: 1.6; color: inherit; opacity: .55;
+      font-size: .62rem; font-weight: 400;
+      line-height: 1.3; color: inherit; opacity: .5;
     }
     /* row 4: area badge */
     .mt-badge {
       margin-top: 4px;
       font-size: .62rem; font-weight: 600;
-      padding: 1px 7px; border-radius: 99px;
-      max-width: 56px; overflow: hidden;
+      padding: 1px 7px; border-radius: 4px;
+      max-width: 60px; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap;
     }
-    /* no-date tab (cred / prep) */
-    .mt-icon  { font-size: 1rem; line-height: 1.5; margin: auto 0; }
+    /* icon-only tab (cred / prep) */
+    .mt-icon { font-size: 1.1rem; line-height: 1.4; }
 
     /* Mobile header tabs (kept for mobile fallback structure) */
     .mob-tabs { display: none; }
