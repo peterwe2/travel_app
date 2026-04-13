@@ -164,42 +164,44 @@
     .mob-hdr-title { font-weight: 600; font-size: .9rem; flex: 1; }
     .mob-presence  { display: flex; gap: 4px; }
 
-    /* ── MOBILE TOP TABS ── */
-    .mob-tabs {
-      display: none;
-      position: fixed; left: 0; right: 0;
-      top: var(--mob-bar);
-      height: var(--tab-bar);
+    /* ── PAGE FRAME (tabs + content unified box) ── */
+    .page-frame {
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
       background: var(--bg);
-      border-bottom: 1px solid var(--border);
-      z-index: 149;
+      overflow: hidden;
+      margin: 24px 24px 40px;
+    }
+
+    /* ── DAY TABS ── */
+    .day-tabs {
+      display: flex;
+      align-items: flex-end;
       overflow-x: auto;
       scrollbar-width: none;
+      padding: 10px 10px 0;
+      gap: 4px;
+      background: var(--sb-bg);
+      border-bottom: 1px solid var(--border);
     }
-    .mob-tabs::-webkit-scrollbar { display: none; }
-    .mob-tabs-inner {
-      display: flex;
-      height: 100%;
-      min-width: max-content;
-      padding: 0 4px;
-      gap: 2px;
-      align-items: center;
-    }
+    .day-tabs::-webkit-scrollbar { display: none; }
     .mob-tab {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 6px 13px; gap: 1px;
-      border: none; cursor: pointer;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      cursor: pointer;
       color: var(--muted); white-space: nowrap;
-      min-width: 60px;
-      border-radius: var(--r-md);
-      background: none;
+      min-width: 62px;
+      border-radius: var(--r-md) var(--r-md) 0 0;
+      background: var(--bg);
       font-family: var(--font);
       transition: background .12s, color .12s;
-      height: 50px;
+      height: 52px;
     }
     .mob-tab:hover  { background: var(--hover); color: var(--text); }
-    .mob-tab.active { background: #e9e9e7; color: var(--text); }
+    .mob-tab.active { background: var(--bg); color: var(--text); border-color: var(--border); box-shadow: 0 1px 0 var(--bg); }
     .mt-dayn {
       font-size: .63rem; font-weight: 500;
       color: inherit; opacity: .6;
@@ -221,6 +223,9 @@
       border-radius: 4px; padding: 0 5px;
     }
 
+    /* Mobile header tabs (kept for mobile fallback structure) */
+    .mob-tabs { display: none; }
+
     /* Sidebar overlay for mobile */
     .sb-overlay {
       display: none;
@@ -237,9 +242,7 @@
       min-width: 0;
     }
     main {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 32px 28px 80px;
+      padding: 28px 28px 60px;
     }
     @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
     .panel-anim { animation: fadeUp .22s ease; }
@@ -376,7 +379,12 @@
       border-top: 1px solid var(--faint);
       align-items: center;
     }
-    .evt-by { flex: 1; font-size: .7rem; color: var(--muted); }
+    .evt-foot-left { display: flex; gap: 5px; flex: 1; flex-wrap: wrap; }
+    .evt-panel {
+      border-top: 1px solid var(--faint);
+      padding: 10px 13px; display: none;
+    }
+    .evt-panel.open { display: block; }
     .map-btn {
       display: inline-flex; align-items: center;
       font-size: .76rem; padding: 4px 9px;
@@ -388,8 +396,7 @@
       transition: background .12s, color .12s;
     }
     .map-btn:hover { background: var(--hover); color: var(--text); }
-    .map-frame { width: 100%; height: 185px; border: none; border-top: 1px solid var(--border); display: none; }
-    .map-frame.open { display: block; }
+    .map-frame { width: 100%; height: 185px; border: none; display: block; }
 
     /* Add event */
     .add-btn {
@@ -409,8 +416,7 @@
     /* ── DRIVING CONNECTOR ── */
     /* Same flex structure as tl-item so columns align perfectly */
     .drive-connector {
-      display: flex;
-      gap: 0;
+      display: flex; gap: 0;
       margin-bottom: 0;
       align-items: stretch;
     }
@@ -444,6 +450,14 @@
     .drive-pill.loading { animation: pulse 1.2s infinite; cursor: default; }
     .drive-pill.no-data { cursor: default; font-size: .68rem; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .drive-mode-tabs { display: flex; gap: 3px; margin-left: 6px; }
+    .dm-btn {
+      background: none; border: 1px solid var(--border); border-radius: var(--r);
+      padding: 2px 7px; font-size: .8rem; cursor: pointer; line-height: 1.4;
+      color: var(--muted); transition: all .12s; font-family: var(--font);
+    }
+    .dm-btn:hover { background: var(--hover); color: var(--text); }
+    .dm-btn.active { background: var(--faint); border-color: #c4c3bf; color: var(--text); }
 
     /* ── CHECKLIST ── */
     .checklist-section { padding: 4px 13px 10px; border-top: 1px solid var(--faint); }
@@ -468,6 +482,50 @@
     .fcl-add { background: none; border: none; color: var(--accent); font-size: .79rem; font-weight: 500; cursor: pointer; padding: 5px 0 0; font-family: var(--font); }
     .fcl-add:hover { text-decoration: underline; }
     .fcl-add:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
+
+    /* ── CRED PICKER (in evt modal) ── */
+    .cred-picker { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
+    .cred-picker:empty::after { content: '尚無憑證可連結'; font-size: .76rem; color: var(--muted); }
+    .cp-item {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 99px;
+      border: 1px solid var(--border); cursor: pointer;
+      font-size: .76rem; font-family: var(--font); font-weight: 500;
+      background: var(--bg); color: var(--muted);
+      transition: all .12s; white-space: nowrap;
+    }
+    .cp-item.selected { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); }
+    .cp-item:hover:not(.selected) { background: var(--hover); color: var(--text); }
+    /* link items in modal */
+    .flink-item { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+    .flink-item:last-child { margin-bottom: 0; }
+    .flink-name { flex: 1; min-width: 0; }
+    .flink-url  { flex: 2; min-width: 0; }
+    .flink-inp  { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--r); font-family: var(--font); font-size: .8rem; background: var(--bg); color: var(--text); }
+    .flink-inp:focus { outline: none; border-color: var(--accent); }
+    .flink-del  { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
+    .flink-del:hover { color: var(--red); }
+    /* links in evt card */
+    .evt-links { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+    .evt-link-item {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .76rem; color: var(--accent); text-decoration: none;
+      padding: 2px 0; width: fit-content;
+    }
+    .evt-link-item:hover { text-decoration: underline; }
+    .evt-link-item::before { content: '↗'; font-size: .7rem; opacity: .7; }
+
+    /* linked cred pills in evt card */
+    .evt-creds { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .evt-cred-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 99px;
+      border: 1px solid var(--border);
+      font-size: .7rem; font-weight: 500; color: var(--muted);
+      background: var(--sb-bg); cursor: pointer; white-space: nowrap;
+      transition: background .12s, color .12s;
+    }
+    .evt-cred-pill:hover { background: var(--hover); color: var(--text); }
 
     /* ── CREDENTIALS ── */
     .cred-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -607,8 +665,8 @@
       .sidebar.open { transform: none; }
       .content-area { margin-left: 0; }
       .mob-header { display: flex; }
-      .mob-tabs   { display: block; }
-      main { padding: calc(var(--mob-bar) + 62px + 16px) 16px 32px; }
+      .page-frame { margin: calc(var(--mob-bar) + 12px) 8px 32px; border-radius: var(--r-md); }
+      main { padding: 20px 14px 48px; }
       .form-row { grid-template-columns: 1fr; }
     }
     @media (min-width: 769px) {
@@ -670,14 +728,14 @@
     <div class="mob-presence" id="presence-bar-mob"></div>
   </div>
 
-  <!-- Mobile top tabs (below header) -->
-  <nav class="mob-tabs"><div class="mob-tabs-inner" id="mob-tabs-inner"></div></nav>
-
   <!-- Content -->
   <div class="content-area">
-    <main id="main">
-      <div class="loading"><div class="spinner"></div><br>載入行程中...</div>
-    </main>
+    <div class="page-frame">
+      <nav class="day-tabs" id="mob-tabs-inner"></nav>
+      <main id="main">
+        <div class="loading"><div class="spinner"></div><br>載入行程中...</div>
+      </main>
+    </div>
   </div>
 
 </div>
@@ -721,6 +779,13 @@
       <textarea id="f-desc" placeholder="景點 / 餐廳特色說明..."></textarea>
     </div>
     <div class="form-group">
+      <label>超連結 <span style="color:var(--muted);font-weight:400">（最多 5 筆）</span></label>
+      <div class="fcl-wrap">
+        <div id="f-link-list"></div>
+        <button type="button" class="fcl-add" id="f-link-add" onclick="addLinkItem()">＋ 新增連結</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label>待辦記事 <span style="color:var(--muted);font-weight:400">（最多 10 筆）</span></label>
       <div class="fcl-wrap">
         <div id="f-cl-list"></div>
@@ -744,6 +809,10 @@
     <div class="form-group">
       <label>Google Maps 連結（選填）</label>
       <input id="f-maps" type="url" placeholder="https://maps.app.goo.gl/..."/>
+    </div>
+    <div class="form-group">
+      <label>連結憑證</label>
+      <div id="f-cred-picker" class="cred-picker"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeEvtModal()">取消</button>
@@ -1176,52 +1245,92 @@ function renderDay() {
   `
   // Fetch driving info for all connectors after render
   evts.forEach((e, i) => {
-    if (i < evts.length - 1) fetchDriving(e, evts[i + 1])
+    if (i < evts.length - 1) fetchDriving(e, evts[i + 1], 'driving')
   })
 }
 
 const TYPE_CN = {meal:'餐廳',attraction:'景點',activity:'活動',transport:'交通',accommodation:'住宿'}
 
 /* ── DRIVING DISTANCE ── */
-const driveCache = {}   // key: "lat1,lng1->lat2,lng2"
+const driveCache    = {}   // key: "mode:lat1,lng1->lat2,lng2"
+const driveModeState = {}  // key: coordKey → current mode
+
+const DRIVE_MODES = {
+  driving: { emoji: '🚗', label: '開車',    osrm: 'driving' },
+  foot:    { emoji: '🚶', label: '步行',    osrm: 'foot'    },
+  transit: { emoji: '🚌', label: '公共運輸', osrm: null      },
+}
 
 function driveKey(a, b) { return `${a.lat},${a.lng}->${b.lat},${b.lng}` }
+function driveSafeId(key) { return key.replace(/[^0-9.]/g,'_') }
 
 function driveConnector(a, b) {
   if (!a.lat || !a.lng || !b.lat || !b.lng) return ''
-  const key = driveKey(a, b)
-  const id  = `drive-${key.replace(/[^0-9.]/g,'_')}`
-  const cached = driveCache[key]
-  let pill
-  if (cached === 'err') {
-    pill = `<span class="drive-pill no-data">無法取得距離</span>`
-  } else if (cached) {
-    pill = drivePillHtml(cached, a, b)
-  } else {
-    pill = `<span class="drive-pill loading" id="${id}">計算中...</span>`
-  }
+  const key  = driveKey(a, b)
+  const safe = driveSafeId(key)
+  const mode = driveModeState[key] || 'driving'
+  const tabs = Object.entries(DRIVE_MODES).map(([m, cfg]) =>
+    `<button class="dm-btn${m===mode?' active':''}" onclick="switchDriveMode('${safe}','${m}')" title="${cfg.label}">${cfg.emoji}</button>`
+  ).join('')
+  const resultHtml = driveResultHtml(key, mode, a, b)
   return `
-  <div class="drive-connector">
+  <div class="drive-connector" id="dc-${safe}" data-key="${key}">
     <div class="drive-c-spacer"></div>
     <div class="drive-c-dot-col"><div class="drive-c-line"></div></div>
-    <div class="drive-c-body">${pill}</div>
+    <div class="drive-c-body">
+      <div id="drive-res-${safe}">${resultHtml}</div>
+      <div class="drive-mode-tabs">${tabs}</div>
+    </div>
   </div>`
 }
 
-function drivePillHtml(data, a, b) {
-  const dirUrl = `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}`
-  return `<a class="drive-pill" href="${dirUrl}" target="_blank" title="在 Google Maps 開啟導航">🚗 ${data.dist} · ${data.time}</a>`
+function driveResultHtml(key, mode, a, b) {
+  if (mode === 'transit') {
+    const url = `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}/data=!4m2!4m1!3e3`
+    return `<a class="drive-pill" href="${url}" target="_blank">🚌 查看大眾運輸路線 ↗</a>`
+  }
+  const ckey   = `${mode}:${key}`
+  const cached = driveCache[ckey]
+  if (!cached)         return `<span class="drive-pill loading" id="dpill-${driveSafeId(key)}-${mode}">計算中...</span>`
+  if (cached === 'err') return `<span class="drive-pill no-data">無法取得距離</span>`
+  const { emoji } = DRIVE_MODES[mode]
+  const dirUrl = mode === 'driving'
+    ? `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}/data=!4m2!4m1!3e0`
+    : `https://www.google.com/maps/dir/${a.lat},${a.lng}/${b.lat},${b.lng}/data=!4m2!4m1!3e2`
+  return `<a class="drive-pill" href="${dirUrl}" target="_blank">${emoji} ${cached.dist} · ${cached.time}</a>`
 }
 
-async function fetchDriving(a, b) {
+function switchDriveMode(safe, mode) {
+  // find connector and extract key from stored data
+  const dc = document.getElementById(`dc-${safe}`)
+  if (!dc) return
+  // restore key from safe id (reverse: _ could be . or ,) — store as data attr instead
+  const key = dc.dataset.key
+  if (!key) return
+  driveModeState[key] = mode
+  // update tab active state
+  dc.querySelectorAll('.dm-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', Object.keys(DRIVE_MODES)[i] === mode)
+  })
+  // update result
+  const [aLat, aLng, bLat, bLng] = key.replace('->',',').split(',').map(Number)
+  const a = { lat: aLat, lng: aLng }, b = { lat: bLat, lng: bLng }
+  const resEl = document.getElementById(`drive-res-${safe}`)
+  if (resEl) resEl.innerHTML = driveResultHtml(key, mode, a, b)
+  // fetch if needed
+  if (mode !== 'transit') fetchDriving(a, b, mode)
+}
+
+async function fetchDriving(a, b, mode='driving') {
   if (!a.lat || !a.lng || !b.lat || !b.lng) return
-  const key = driveKey(a, b)
-  if (driveCache[key]) return   // already cached
-  driveCache[key] = null        // mark in-flight
-  const id = `drive-${key.replace(/[^0-9.]/g,'_')}`
+  const key  = driveKey(a, b)
+  const ckey = `${mode}:${key}`
+  if (driveCache[ckey]) return
+  driveCache[ckey] = null   // in-flight
 
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
+    const profile = DRIVE_MODES[mode].osrm
+    const url = `https://router.project-osrm.org/route/v1/${profile}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
     const res  = await fetch(url)
     const json = await res.json()
     if (json.code !== 'Ok' || !json.routes?.length) throw new Error('no route')
@@ -1232,19 +1341,18 @@ async function fetchDriving(a, b) {
     const time = seconds < 60   ? `${Math.round(seconds)} 秒`
                : seconds < 3600 ? `${Math.round(seconds/60)} 分鐘`
                : `${Math.floor(seconds/3600)} 小時 ${Math.round((seconds%3600)/60)} 分鐘`
-
-    driveCache[key] = { dist, time }
+    driveCache[ckey] = { dist, time }
   } catch(_) {
-    driveCache[key] = 'err'
+    driveCache[ckey] = 'err'
   }
 
-  // Update DOM element if it still exists
-  const el = document.getElementById(id)
-  if (!el) return
-  const pill = driveCache[key] === 'err'
-    ? `<span class="drive-pill no-data">無法取得距離</span>`
-    : drivePillHtml(driveCache[key], a, b)
-  el.closest('.drive-c-body').innerHTML = pill
+  // Update DOM if still on page
+  const safe    = driveSafeId(key)
+  const curMode = driveModeState[key] || 'driving'
+  if (curMode !== mode) return   // user already switched away
+  const resEl = document.getElementById(`drive-res-${safe}`)
+  if (!resEl) return
+  resEl.innerHTML = driveResultHtml(key, mode, a, b)
 }
 
 function evtCard(e, day) {
@@ -1276,24 +1384,48 @@ function evtCard(e, day) {
       ${renderChecklist(e)}
       ${e.address ? `<a class="evt-addr" href="${mapsHref||'#'}" target="${mapsHref?'_blank':'_self'}">📍 ${e.address}</a>` : ''}
       <div class="evt-foot">
-        <span class="evt-by">by ${e.created_by||'—'}</span>
-        ${embedUrl ? `<button class="map-btn" onclick="toggleMap('${e.id}')">地圖</button>` : ''}
+        <div class="evt-foot-left">
+          ${embedUrl ? `<button class="map-btn" id="mapbtn-${e.id}" onclick="toggleEvtPanel('${e.id}','map')">地圖</button>` : ''}
+          ${(Array.isArray(e.cred_ids)&&e.cred_ids.length) ? `<button class="map-btn" id="credbtn-${e.id}" onclick="toggleEvtPanel('${e.id}','cred')">憑證</button>` : ''}
+          ${(Array.isArray(e.links)&&e.links.filter(l=>l.url).length) ? `<button class="map-btn" id="linkbtn-${e.id}" onclick="toggleEvtPanel('${e.id}','link')">資料</button>` : ''}
+        </div>
         <button class="btn btn-ghost btn-sm" onclick="openEditEvt('${e.id}')">編輯</button>
       </div>
-      ${embedUrl ? `<iframe id="map-${e.id}" class="map-frame" src="${embedUrl}" allowfullscreen loading="lazy"></iframe>` : ''}
+      ${embedUrl ? `<div class="evt-panel" id="panel-map-${e.id}"><iframe class="map-frame open" style="display:block;width:100%;height:185px;border:none" src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>` : ''}
+      ${(Array.isArray(e.cred_ids)&&e.cred_ids.length) ? `<div class="evt-panel" id="panel-cred-${e.id}">${renderEvtCredPillsInner(e)}</div>` : ''}
+      ${(Array.isArray(e.links)&&e.links.filter(l=>l.url).length) ? `<div class="evt-panel" id="panel-link-${e.id}">${renderEvtLinksInner(e)}</div>` : ''}
     </div>
   </div>`
 }
 
-function toggleMap(id) {
-  const frame = document.getElementById('map-'+id)
-  if (!frame) return
-  const isOpen = frame.classList.toggle('open')
-  const btn = frame.previousElementSibling?.querySelector('.map-btn')
+function toggleEvtPanel(id, type) {
+  const panel = document.getElementById(`panel-${type}-${id}`)
+  const btn   = document.getElementById(`${type}btn-${id}`)
+  if (!panel) return
+  const isOpen = panel.classList.toggle('open')
   if (btn) {
     btn.style.background = isOpen ? 'var(--hover)' : ''
     btn.style.color      = isOpen ? 'var(--text)'  : ''
   }
+}
+
+/* ── EVT LINKS ── */
+function renderEvtLinksInner(e) {
+  const items = Array.isArray(e.links) ? e.links.filter(l=>l.url) : []
+  return `<div class="evt-links">${items.map(l =>
+    `<a class="evt-link-item" href="${escHtml(l.url)}" target="_blank" rel="noopener">${escHtml(l.name||l.url)}</a>`
+  ).join('')}</div>`
+}
+
+/* ── EVT LINKED CRED PILLS ── */
+function renderEvtCredPillsInner(e) {
+  const ids = Array.isArray(e.cred_ids) ? e.cred_ids : []
+  const linked = ids.map(id => creds.find(c=>c.id===id)).filter(Boolean)
+  return `<div class="evt-creds">${linked.map(c =>
+    `<span class="evt-cred-pill" onclick="openEditCred('${c.id}')" title="${escHtml(c.title)}">
+      ${CRED_ICON[c.type]||'📄'} ${escHtml(c.title)}
+    </span>`
+  ).join('')}</div>`
 }
 
 /* ── CHECKLIST CARD RENDER ── */
@@ -1440,6 +1572,52 @@ function removeClItem(idx) {
   // Restore done state lost during re-render is not needed here (modal always resets done to false visually)
 }
 
+// ════════════════════════════════════════════════════
+// LINK MODAL MANAGEMENT
+// ════════════════════════════════════════════════════
+function renderLinkModal(items) {
+  const list = document.getElementById('f-link-list')
+  list.innerHTML = items.map((item,i) => `
+    <div class="flink-item" id="flink-row-${i}">
+      <input class="flink-inp flink-name" type="text" placeholder="名稱" value="${escHtml(item.name)}" maxlength="40" id="flink-name-${i}"/>
+      <input class="flink-inp flink-url"  type="url"  placeholder="https://..." value="${escHtml(item.url)}" id="flink-url-${i}"/>
+      <button type="button" class="flink-del" onclick="removeLinkItem(${i})" title="刪除">×</button>
+    </div>`).join('')
+  document.getElementById('f-link-add').disabled = items.length >= 5
+}
+
+function addLinkItem() {
+  const rows = document.querySelectorAll('#f-link-list .flink-item')
+  if (rows.length >= 5) return
+  const i = rows.length
+  const div = document.createElement('div')
+  div.className = 'flink-item'; div.id = `flink-row-${i}`
+  div.innerHTML = `
+    <input class="flink-inp flink-name" type="text" placeholder="名稱" maxlength="40" id="flink-name-${i}"/>
+    <input class="flink-inp flink-url"  type="url"  placeholder="https://..." id="flink-url-${i}"/>
+    <button type="button" class="flink-del" onclick="removeLinkItem(${i})" title="刪除">×</button>`
+  document.getElementById('f-link-list').appendChild(div)
+  document.getElementById(`flink-name-${i}`).focus()
+  document.getElementById('f-link-add').disabled = (i+1) >= 5
+}
+
+function removeLinkItem(idx) {
+  const rows = document.querySelectorAll('#f-link-list .flink-item')
+  const vals = Array.from(rows).map((_,i) => ({
+    name: document.getElementById(`flink-name-${i}`)?.value||'',
+    url:  document.getElementById(`flink-url-${i}`)?.value||''
+  }))
+  vals.splice(idx, 1)
+  renderLinkModal(vals)
+}
+
+function getLinkItems() {
+  return Array.from(document.querySelectorAll('#f-link-list .flink-item')).map((_,i) => ({
+    name: document.getElementById(`flink-name-${i}`)?.value.trim()||'',
+    url:  document.getElementById(`flink-url-${i}`)?.value.trim()||''
+  })).filter(x => x.url)
+}
+
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
@@ -1447,6 +1625,23 @@ function escHtml(s) {
 // ════════════════════════════════════════════════════
 // EVENT CRUD
 // ════════════════════════════════════════════════════
+function renderCredPicker(selectedIds=[]) {
+  const el = document.getElementById('f-cred-picker')
+  if (!el) return
+  if (!creds.length) { el.innerHTML = ''; return }
+  el.innerHTML = creds.map(c => {
+    const sel = selectedIds.includes(c.id)
+    return `<span class="cp-item${sel?' selected':''}" data-cid="${c.id}" onclick="this.classList.toggle('selected')">
+      ${CRED_ICON[c.type]||'📄'} ${escHtml(c.title)}
+    </span>`
+  }).join('')
+}
+
+function getPickedCredIds() {
+  return Array.from(document.querySelectorAll('#f-cred-picker .cp-item.selected'))
+    .map(el => el.dataset.cid).filter(Boolean)
+}
+
 function openAddEvt(dayId) {
   editEvtId=null; editDayId=dayId
   document.getElementById('evt-modal-title').textContent='新增行程事件'
@@ -1454,6 +1649,8 @@ function openAddEvt(dayId) {
     const el=document.getElementById(id); if(el.tagName==='SELECT') el.value='attraction'; else el.value=''
   })
   renderClModal([])
+  renderLinkModal([])
+  renderCredPicker([])
   document.getElementById('evt-del-btn').style.display='none'
   document.getElementById('evt-overlay').classList.remove('hidden')
 }
@@ -1474,6 +1671,8 @@ function openEditEvt(id) {
   document.getElementById('f-lng').value     = e.lng||''
   document.getElementById('f-maps').value    = e.google_maps_url||''
   renderClModal(Array.isArray(e.checklist) ? e.checklist : [])
+  renderLinkModal(Array.isArray(e.links) ? e.links : [])
+  renderCredPicker(Array.isArray(e.cred_ids) ? e.cred_ids : [])
   document.getElementById('evt-del-btn').style.display='inline-flex'
   document.getElementById('evt-overlay').classList.remove('hidden')
 }
@@ -1510,6 +1709,8 @@ async function saveEvt() {
     lng:             parseFloat(document.getElementById('f-lng').value)||null,
     google_maps_url: document.getElementById('f-maps').value.trim()||null,
     checklist:       clItems,
+    links:           getLinkItems(),
+    cred_ids:        getPickedCredIds(),
     updated_at:      new Date().toISOString(),
   }
 
@@ -1524,9 +1725,9 @@ async function saveEvt() {
   }
 
   if (error) {
-    // checklist 欄位不存在時，移除後重試
-    if (error.code === '42703' || error.message?.includes('checklist')) {
-      delete payload.checklist
+    // 欄位不存在時，逐步移除後重試
+    if (error.code === '42703' || error.message?.includes('checklist') || error.message?.includes('cred_ids') || error.message?.includes('links')) {
+      delete payload.checklist; delete payload.cred_ids; delete payload.links
       let editEvtIdCopy = editEvtId
       if (editEvtIdCopy) {
         ;({ error } = await db.from('events').update(payload).eq('id', editEvtIdCopy))
