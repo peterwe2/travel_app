@@ -367,11 +367,16 @@
     .evt-head { padding: 10px 13px 7px; display: flex; align-items: flex-start; gap: 10px; }
     .evt-emoji { font-size: 1.2rem; flex-shrink: 0; line-height: 1.4; }
     .evt-info { flex: 1; min-width: 0; }
-    .evt-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .evt-title-row { display: flex; align-items: flex-start; gap: 8px; }
+    .evt-title-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .evt-title { font-weight: 600; font-size: .93rem; line-height: 1.35; }
+    .evt-time-row {
+      display: flex; align-items: center; gap: 4px;
+      margin-top: 3px; margin-bottom: 1px;
+    }
     .evt-time-inline {
       font-size: .72rem; font-weight: 500; color: var(--muted);
-      font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
     }
     .evt-time-sep { color: var(--border); font-size: .65rem; }
     .evt-meta  { display: flex; gap: 6px; align-items: center; margin-top: 3px; flex-wrap: wrap; }
@@ -1502,12 +1507,14 @@ function evtCard(e, day) {
         <div class="evt-info">
           <div class="evt-title-row">
             <span class="type-badge t-${e.type}">${TYPE_CN[e.type]||e.type}</span>
-            <span class="evt-title">${e.title}</span>
-            ${timeLabel}
+            <div class="evt-title-col">
+              <span class="evt-title">${e.title}</span>
+              ${timeLabel ? `<div class="evt-time-row">${timeLabel}</div>` : ''}
+            </div>
           </div>
         </div>
       </div>
-      ${e.description ? `<div class="evt-desc">${e.description}</div>` : ''}
+      ${e.description ? `<div class="evt-desc"><span style="margin-right:5px">🗒️</span>${e.description}</div>` : ''}
       ${renderChecklist(e)}
       ${e.address ? `<a class="evt-addr" href="${mapsHref||'#'}" target="${mapsHref?'_blank':'_self'}">📍 ${e.address}</a>` : ''}
       <div class="evt-foot">
