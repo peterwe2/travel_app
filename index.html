@@ -217,7 +217,7 @@
       font-size: 1.3rem; font-weight: 400;
       color: var(--text); line-height: 1;
       letter-spacing: -.02em;
-      font-family: 'Times New Roman', Times, serif;
+      font-family: 'Noto Serif', Times, serif;
       font-variant-numeric: tabular-nums;
     }
     .mob-tab:not(.active) .mt-daynum { color: var(--muted); }
@@ -289,7 +289,7 @@
       margin-top: 8px; font-size: .86rem;
     }
     .day-summary-label {
-      font-size: .72rem; font-weight: 600; color: var(--muted);
+      font-size: .72rem; font-weight: 400; color: var(--muted);
       white-space: nowrap; letter-spacing: .03em; text-transform: uppercase;
     }
     .day-summary-text { color: var(--text); line-height: 1.5; }
@@ -326,54 +326,34 @@
     .btn-route { font-size: .78rem; }
 
     /* ── TIMELINE ── */
-    .timeline { position: relative; }
+    .timeline { position: relative; padding-top: 4px; }
     .timeline::before {
       content:''; position:absolute;
-      left: 66px; top: 0; bottom: 0;
+      left: 18px; top: 0; bottom: 0;
       width: 1px; background: var(--border);
     }
-    .tl-item { display: flex; gap: 0; margin-bottom: 10px; align-items: stretch; }
-    .tl-time {
-      width: 56px; flex-shrink: 0;
-      display: flex; flex-direction: column;
-      align-items: flex-end;
-      padding-top: 13px;
-      padding-right: 0;
-      gap: 0;
-    }
-    .tl-time-start {
-      font-size: .72rem; font-weight: 700;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -.01em;
-      line-height: 1.3;
-    }
-    .tl-time-end {
-      font-size: .66rem; font-weight: 400;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-      line-height: 1.3;
-    }
+    .tl-item { display: flex; gap: 0; margin-bottom: 8px; align-items: stretch; }
+    /* dot column only — no time text on left */
     .tl-dot-wrap {
-      flex-shrink: 0; width: 21px;
+      flex-shrink: 0; width: 37px;
       display: flex; flex-direction: column;
       align-items: center;
-      padding-top: 16px;
+      padding-top: 14px;
     }
     .tl-dot {
-      width: 9px; height: 9px; border-radius: 50%;
+      width: 7px; height: 7px; border-radius: 50%;
       background: var(--bg);
-      border: 2px solid var(--border);
-      flex-shrink: 0;
+      border: 2px solid #bbb;
+      flex-shrink: 0; z-index: 1;
     }
     .tl-dot-line {
       width: 1px; flex: 1;
       background: var(--border);
-      margin-top: 3px;
+      margin-top: 4px;
       min-height: 0;
     }
 
-    /* Event block (Notion-style flat block) */
+    /* Event block */
     .evt-card {
       flex: 1;
       border: 1px solid var(--border);
@@ -382,12 +362,19 @@
       transition: box-shadow .15s, border-color .15s;
       background: var(--bg);
     }
-    .evt-card:hover { border-color: #d3d2cf; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
-    .evt-head { padding: 11px 13px 7px; display: flex; align-items: flex-start; gap: 10px; }
-    .evt-emoji { font-size: 1.25rem; flex-shrink: 0; line-height: 1.3; }
+    .evt-card:hover { border-color: #d0cfcc; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    /* time + title row */
+    .evt-head { padding: 10px 13px 7px; display: flex; align-items: flex-start; gap: 10px; }
+    .evt-emoji { font-size: 1.2rem; flex-shrink: 0; line-height: 1.4; }
     .evt-info { flex: 1; min-width: 0; }
+    .evt-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
     .evt-title { font-weight: 600; font-size: .93rem; line-height: 1.35; }
-    .evt-meta  { display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+    .evt-time-inline {
+      font-size: .72rem; font-weight: 500; color: var(--muted);
+      font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0;
+    }
+    .evt-time-sep { color: var(--border); font-size: .65rem; }
+    .evt-meta  { display: flex; gap: 6px; align-items: center; margin-top: 3px; flex-wrap: wrap; }
     .type-badge {
       font-size: .65rem; font-weight: 600;
       padding: 2px 7px; border-radius: 3px;
@@ -402,7 +389,7 @@
     }
     .evt-addr:hover { text-decoration: underline; }
     .evt-foot {
-      display: flex; gap: 6px; padding: 7px 13px 10px;
+      display: flex; gap: 6px; padding: 6px 13px 9px;
       border-top: 1px solid var(--faint);
       align-items: center;
     }
@@ -447,13 +434,13 @@
       margin-bottom: 0;
       align-items: stretch;
     }
-    /* Spacer matching .tl-time width */
+    /* Spacer matching tl-dot-wrap width */
     .drive-c-spacer {
-      width: 56px; flex-shrink: 0;
+      width: 37px; flex-shrink: 0;
     }
     /* Dot column: continuous line through connector */
     .drive-c-dot-col {
-      width: 21px; flex-shrink: 0;
+      width: 0; flex-shrink: 0;
       display: flex; flex-direction: column; align-items: center;
     }
     .drive-c-line {
@@ -762,14 +749,9 @@
     }
     @media (max-width: 768px) {
       /* Narrower timeline left rail on mobile */
-      .timeline::before { left: 46px; }
-      .tl-time  { width: 38px; }
-      .tl-time-start { font-size: .68rem; }
-      .tl-time-end   { font-size: .62rem; }
-      .tl-dot-wrap   { width: 16px; }
-      .tl-dot        { width: 8px; height: 8px; }
-      .drive-c-spacer  { width: 38px; }
-      .drive-c-dot-col { width: 16px; }
+      .timeline::before { left: 18px; }
+      .tl-dot-wrap   { width: 37px; }
+      .drive-c-spacer  { width: 37px; }
     }
   </style>
 </head>
@@ -820,7 +802,7 @@
   <!-- Mobile header -->
   <div class="mob-header">
     <button class="mob-menu-btn" onclick="openMobMenu()">☰</button>
-    <span class="mob-hdr-title">🏝 2026沖繩週年之旅</span>
+    <span class="mob-hdr-title">✈️ 2026沖繩週年之旅</span>
     <div class="mob-presence" id="presence-bar-mob"></div>
   </div>
 
@@ -831,6 +813,9 @@
       <main id="main">
         <div class="loading"><div class="spinner"></div><br>載入行程中...</div>
       </main>
+      <div style="text-align:center;padding:14px 0 20px;font-size:.72rem;color:var(--muted);letter-spacing:.06em;border-top:1px solid var(--border)">
+        2026．Designed by Peter
+      </div>
     </div>
   </div>
 
@@ -1362,9 +1347,8 @@ function renderDay() {
   document.getElementById('main').innerHTML = `
     <div class="day-hero panel-anim">
       <div class="day-title-row">
-        <span class="day-icon">${day.icon || DEFAULT_DAY_ICON(day.day_number)}</span>
         <h1 class="day-h1">${day.title}</h1>
-        <button class="btn btn-primary btn-sm" onclick="openAddEvt('${day.id}')" style="margin-left:auto">＋ 新增行程</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題" style="margin-left:auto">編輯</button>
       </div>
       ${day.theme ? `<div class="day-summary-row">
         <span class="day-summary-label">摘要    </span>
@@ -1376,7 +1360,7 @@ function renderDay() {
       </div>` : ''}
       <div class="day-actions">
         ${routeUrl ? `<a href="${routeUrl}" target="_blank" class="btn btn-route btn-sm">查看今日路線</a>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="openEditDay()" title="編輯標題" style="margin-left:auto">編輯</button>
+        <button class="btn btn-sm" onclick="openAddEvt('${day.id}')" style="margin-left:auto;background:#37352f;color:#fff;border-color:#37352f">＋ 新增行程</button>
       </div>
     </div>
     <div class="timeline">${timelineHtml}</div>
@@ -1499,23 +1483,22 @@ function evtCard(e, day) {
   const embedUrl = e.lat&&e.lng ? `https://maps.google.com/maps?q=${e.lat},${e.lng}&z=15&output=embed&hl=zh-TW` : ''
   const timeStr = e.time_start ? e.time_start.slice(0,5) : '—'
   const timeEnd = e.time_end   ? e.time_end.slice(0,5)   : ''
+  const timeLabel = timeStr !== '—'
+    ? `<span class="evt-time-inline">${timeStr}${timeEnd ? `<span class="evt-time-sep"> – </span>${timeEnd}` : ''}</span>`
+    : ''
   return `
   <div class="tl-item">
-    <div class="tl-time">
-      <span class="tl-time-start">${timeStr}</span>
-      ${timeEnd ? `<span class="tl-time-end">${timeEnd}</span>` : ''}
-    </div>
     <div class="tl-dot-wrap">
-      <div class="tl-dot" style="border-color:${day.color}"></div>
+      <div class="tl-dot" style="border-color:${day.color||'#bbb'}"></div>
       <div class="tl-dot-line"></div>
     </div>
     <div class="evt-card" style="margin-left:8px">
       <div class="evt-head">
-        <div class="evt-emoji">${e.emoji||'📍'}</div>
         <div class="evt-info">
-          <div class="evt-title">${e.title}</div>
-          <div class="evt-meta">
+          <div class="evt-title-row">
             <span class="type-badge t-${e.type}">${TYPE_CN[e.type]||e.type}</span>
+            <span class="evt-title">${e.title}</span>
+            ${timeLabel}
           </div>
         </div>
       </div>
