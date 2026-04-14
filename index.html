@@ -889,7 +889,12 @@
     </div>
     <div class="form-group">
       <label>Google Maps 連結（選填）</label>
-      <input id="f-maps" type="url" placeholder="https://maps.app.goo.gl/..."/>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="f-maps" type="url" placeholder="https://maps.app.goo.gl/..." style="flex:1"
+          onblur="autoFillFromMapsUrl()"/>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillFromMapsUrl()" id="f-maps-parse-btn">自動填入</button>
+      </div>
+      <div id="f-maps-status" style="font-size:.72rem;color:var(--muted);margin-top:4px;min-height:1em"></div>
     </div>
     <div class="form-group">
       <label>連結憑證</label>
@@ -1883,6 +1888,95 @@ function openEditEvt(id) {
 }
 
 function closeEvtModal() { document.getElementById('evt-overlay').classList.add('hidden') }
+
+async function autoFillFromMapsUrl() {
+  const url = document.getElementById('f-maps').value.trim()
+  const status = document.getElementById('f-maps-status')
+  if (!url) return
+
+  status.textContent = '解析中...'
+
+  // Try to extract lat/lng from URL directly
+  let lat = null, lng = null
+
+  // Pattern 1: /@lat,lng,  (most common full URL)
+  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+  if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+
+  // Pattern 2: ?q=lat,lng or query=lat,lng
+  if (!lat) {
+    m = url.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/)
+    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+  }
+
+  // Pattern 3: /place/...ll=lat,lng
+  if (!lat) {
+    m = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/)
+    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+  }
+
+  // Pattern 4: short URL — resolve via allorigins proxy to follow redirects
+  if (!lat && (url.includes('goo.gl') || url.includes('maps.app'))) {
+    try {
+      status.textContent = '解析短網址中...'
+      const proxyRes  = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
+      const proxyJson = await proxyRes.json()
+      const finalUrl  = proxyJson?.status?.url || ''
+      // try to extract coords from the redirected URL
+      m = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+      if (!lat) {
+        m = finalUrl.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/)
+        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+      }
+      // also try parsing from page content (Google embeds coords in the HTML)
+      if (!lat && proxyJson?.contents) {
+        m = proxyJson.contents.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
+      }
+    } catch(_) {}
+    if (!lat) {
+      status.textContent = '⚠️ 短網址解析失敗，請改用完整 Google Maps 網址（含 @緯度,經度）'
+      return
+    }
+  }
+
+  if (!lat) {
+    status.textContent = '⚠️ 無法從此網址解析座標，請確認為完整 Google Maps 網址'
+    return
+  }
+
+  // Fill lat/lng
+  document.getElementById('f-lat').value = lat
+  document.getElementById('f-lng').value = lng
+
+  // Reverse geocode via Nominatim to get address
+  try {
+    const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=zh-TW`, {
+      headers: { 'Accept-Language': 'zh-TW' }
+    })
+    const data = await res.json()
+    if (data?.display_name) {
+      const addrEl = document.getElementById('f-addr')
+      if (!addrEl.value.trim()) {
+        const a = data.address || {}
+        // Build address from most specific to broader context
+        const name     = a.tourism || a.amenity || a.shop || a.leisure || a.building || ''
+        const road     = a.road || a.pedestrian || a.footway || a.path || ''
+        const block    = a.house_number ? `${road} ${a.house_number}`.trim() : road
+        const suburb   = a.suburb || a.neighbourhood || a.quarter || ''
+        const district = a.city_district || a.district || ''
+        const city     = a.city || a.town || a.village || a.county || ''
+        const state    = a.state || a.province || ''
+        const parts = [name, block, suburb, district, city, state].filter(Boolean)
+        addrEl.value = parts.length ? parts.join('、') : data.display_name
+      }
+      status.textContent = `✓ 已填入座標 (${lat}, ${lng})`
+    }
+  } catch(_) {
+    status.textContent = `✓ 已填入座標 (${lat}, ${lng})（地址解析失敗，可手動填寫）`
+  }
+}
 
 async function saveEvt() {
   const title=document.getElementById('f-title').value.trim()
