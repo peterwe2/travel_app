@@ -1889,6 +1889,167 @@ function openEditEvt(id) {
 
 function closeEvtModal() { document.getElementById('evt-overlay').classList.add('hidden') }
 
+function extractCoordsFromText(text) {
+  if (!text) return null
+  let m
+  // @lat,lng  (standard Maps URL — most reliable)
+  m = text.match(/@(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // Google Maps data param: !3d<lat>!4d<lng> (place page URLs)
+  m = text.match(/!3d(-?\d{1,3}\.\d{4,})(?:.*?)!4d(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // ?q=lat,lng or &query=lat,lng or center=lat,lng
+  m = text.match(/[?&](?:q|query|center)=(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // ll=lat,lng  or  sll=lat,lng
+  m = text.match(/[?&]s?ll=(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // "lat":xx,"lng":xx  (embedded JSON)
+  m = text.match(/"lat"\s*:\s*(-?\d{1,3}\.\d{4,})\s*,\s*"lng"\s*:\s*(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // Google Maps APP_INITIALIZATION_STATE / data arrays [[lat,lng,…]]
+  m = text.match(/\[\[(-?\d{2,3}\.\d{5,}),(-?\d{2,3}\.\d{5,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  // pb=!…!3d<lat>!4d<lng> — protobuf URL format
+  m = text.match(/pb=.*?!3d(-?\d{1,3}\.\d{4,}).*?!4d(-?\d{1,3}\.\d{4,})/)
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  return null
+}
+
+// Extract all Maps-style URLs from an HTML string
+function extractMapsUrlsFromHtml(html) {
+  const urls = []
+  const re = /https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|google\.com\/maps)[^\s"'<>)]+/g
+  let m
+  while ((m = re.exec(html)) !== null) urls.push(m[0].replace(/&amp;/g, '&'))
+  return urls
+}
+
+async function fetchViaAllorigins(targetUrl, timeout = 10000) {
+  const res  = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+    { signal: AbortSignal.timeout(timeout) })
+  if (!res.ok) throw new Error('allorigins error')
+  return res.json()  // { contents, status: { url, http_code } }
+}
+
+// Normalise HTML entities and unicode escapes commonly found in embedded URLs
+function decodeHtmlUrl(s) {
+  return s.replace(/&amp;/g, '&')
+          .replace(/\\u003d/gi, '=').replace(/\\u0026/gi, '&')
+          .replace(/\\u002f/gi, '/').replace(/\\u003f/gi, '?')
+}
+
+// Extract every candidate destination URL from a Firebase Dynamic Link HTML page
+function extractCandidateUrls(html) {
+  const decoded = decodeHtmlUrl(html)
+  const seen = new Set()
+  const add = u => { if (u && u.startsWith('http')) seen.add(decodeHtmlUrl(u)) }
+
+  // 1. meta http-equiv="refresh" (both attr orderings, with or without spaces around ;)
+  const metaRe = [
+    /http-equiv=["']refresh["'][^>]*content=["'][^"']*?url\s*=\s*([^"'\s>]+)/gi,
+    /content=["'][^"']*?url\s*=\s*([^"'\s>]+)[^>]*http-equiv=["']refresh["']/gi,
+  ]
+  for (const re of metaRe) {
+    let m; re.lastIndex = 0
+    while ((m = re.exec(decoded)) !== null) add(m[1])
+  }
+
+  // 2. JS patterns — Firebase embeds FALLBACK_URL / window.location in script tags
+  const jsRe = [
+    /(?:FALLBACK_URL|fallbackUrl|fallback_url|deepLink|deeplink|redirect(?:Url|_url)?|destination)\s*[=:]\s*["'`]([^"'`]+)["'`]/gi,
+    /window\.location(?:\.href)?\s*=\s*["'`]([^"'`]+)["'`]/gi,
+    /location\.(?:href|replace)\s*\(\s*["'`]([^"'`]+)["'`]/gi,
+    // JSON key "url": "https://..."
+    /"url"\s*:\s*"(https:\/\/[^"]+)"/gi,
+  ]
+  for (const re of jsRe) {
+    let m; re.lastIndex = 0
+    while ((m = re.exec(decoded)) !== null) add(m[1])
+  }
+
+  // 3. og:url / canonical
+  let m
+  m = decoded.match(/property=["']og:url["'][^>]*content=["']([^"']+)["']/i)
+   || decoded.match(/content=["']([^"']+)["'][^>]*property=["']og:url["']/i)
+  if (m) add(m[1])
+  m = decoded.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)
+  if (m) add(m[1])
+
+  // 4. Any Google Maps URL in the raw text (most reliable net)
+  const anyMaps = /https?:\/\/(?:maps\.app\.goo\.gl|(?:www\.)?google\.com\/maps|maps\.google\.com)[^\s"'`<>\\]+/g
+  let am; anyMaps.lastIndex = 0
+  while ((am = anyMaps.exec(decoded)) !== null) add(am[0])
+
+  return [...seen]
+}
+
+async function resolveShortMapsUrl(url) {
+  // ── Step 1: fetch via allorigins ──────────────────────────────────────────
+  let json
+  try { json = await fetchViaAllorigins(url, 12000) } catch(_) {}
+
+  if (json) {
+    const html = json?.contents || ''
+    const reportedUrl = decodeHtmlUrl(json?.status?.url || '')
+    console.debug('[resolveShortMapsUrl] allorigins status.url:', reportedUrl)
+    console.debug('[resolveShortMapsUrl] HTML snippet:', html.slice(0, 800))
+
+    // 1a. Did allorigins end up at a Maps URL with coords?
+    let coords = extractCoordsFromText(reportedUrl)
+    if (coords) return coords
+
+    // 1b. Extract all candidate destination URLs from the Firebase HTML
+    const candidates = extractCandidateUrls(html)
+    console.debug('[resolveShortMapsUrl] candidates:', candidates)
+
+    // 1c. Try coords directly from each candidate URL string
+    for (const u of candidates) {
+      coords = extractCoordsFromText(u)
+      if (coords) return coords
+    }
+
+    // 1d. Full decoded-text scan (catches APP_INITIALIZATION_STATE data arrays)
+    coords = extractCoordsFromText(decodeHtmlUrl(html))
+    if (coords) return coords
+
+    // 1e. For the first real Maps URL candidate, fetch it via allorigins too
+    const mapsCandidate = candidates.find(u =>
+      (u.includes('google.com/maps') || u.includes('maps.google')) &&
+      !u.includes('maps.app.goo.gl'))
+    if (mapsCandidate) {
+      try {
+        const json2 = await fetchViaAllorigins(mapsCandidate, 9000)
+        coords = extractCoordsFromText(decodeHtmlUrl(json2?.status?.url || ''))
+        if (coords) return coords
+        coords = extractCoordsFromText(decodeHtmlUrl(json2?.contents || ''))
+        if (coords) return coords
+      } catch(_) {}
+    }
+  }
+
+  // ── Step 2: fallback via corsproxy.io ─────────────────────────────────────
+  try {
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,
+      { redirect: 'follow', signal: AbortSignal.timeout(12000) })
+    const text = await res.text()
+    const finalUrl = res.url.includes('corsproxy.io')
+      ? decodeURIComponent(res.url.split('?').slice(1).join('?'))
+      : res.url
+    let coords = extractCoordsFromText(finalUrl)
+    if (coords) return coords
+    // also parse meta refresh / JS from corsproxy result
+    for (const u of extractCandidateUrls(text)) {
+      coords = extractCoordsFromText(u)
+      if (coords) return coords
+    }
+    coords = extractCoordsFromText(decodeHtmlUrl(text))
+    if (coords) return coords
+  } catch(_) {}
+
+  return null
+}
+
 async function autoFillFromMapsUrl() {
   const url = document.getElementById('f-maps').value.trim()
   const status = document.getElementById('f-maps-status')
@@ -1915,30 +2076,16 @@ async function autoFillFromMapsUrl() {
     if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
   }
 
-  // Pattern 4: short URL — resolve via allorigins proxy to follow redirects
+  // Pattern 4: short URL — resolve via multiple proxies
   if (!lat && (url.includes('goo.gl') || url.includes('maps.app'))) {
-    try {
-      status.textContent = '解析短網址中...'
-      const proxyRes  = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
-      const proxyJson = await proxyRes.json()
-      const finalUrl  = proxyJson?.status?.url || ''
-      // try to extract coords from the redirected URL
-      m = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-      if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-      if (!lat) {
-        m = finalUrl.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/)
-        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-      }
-      // also try parsing from page content (Google embeds coords in the HTML)
-      if (!lat && proxyJson?.contents) {
-        m = proxyJson.contents.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-      }
-    } catch(_) {}
+    status.textContent = '解析短網址中...'
+    lat = await resolveShortMapsUrl(url)
     if (!lat) {
       status.textContent = '⚠️ 短網址解析失敗，請改用完整 Google Maps 網址（含 @緯度,經度）'
       return
     }
+    // lat here is actually {lat, lng} object from resolveShortMapsUrl
+    lng = lat.lng; lat = lat.lat
   }
 
   if (!lat) {
