@@ -897,6 +897,7 @@
         <input id="f-maps" type="url" placeholder="https://maps.app.goo.gl/..." style="flex:1"
           onblur="autoFillFromMapsUrl()"/>
         <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillFromMapsUrl()" id="f-maps-parse-btn">自動填入</button>
+        <a href="https://mapu.retiolus.net" target="_blank" class="btn btn-ghost btn-sm" style="white-space:nowrap">Mapu ↗</a>
       </div>
       <div id="f-maps-status" style="font-size:.72rem;color:var(--muted);margin-top:4px;min-height:1em"></div>
     </div>
@@ -2076,6 +2077,45 @@ async function resolveShortMapsUrl(url) {
   return null
 }
 
+// Use mapu.retiolus.net/unshortener via CORS proxies (mapu itself has no CORS headers)
+async function resolveViaMapu(url) {
+  const mapu = `https://mapu.retiolus.net/unshortener?link=${encodeURIComponent(url)}`
+
+  // Try multiple CORS proxies in order
+  const proxies = [
+    // corsproxy.io — two formats
+    `https://corsproxy.io/?${encodeURIComponent(mapu)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(mapu)}`,
+    // allorigins raw — returns content directly, no wrapper
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(mapu)}`,
+    // allorigins get — returns { contents: "...", status: {...} }
+    `https://api.allorigins.win/get?url=${encodeURIComponent(mapu)}`,
+  ]
+
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(12000) })
+      if (!res.ok) continue
+      const text = await res.text()
+      // allorigins /get wraps in { contents: "...", status: {...} }
+      let json
+      try { json = JSON.parse(text) } catch { continue }
+      // unwrap allorigins /get
+      if (json?.contents && typeof json.contents === 'string') {
+        try { json = JSON.parse(json.contents) } catch { continue }
+      }
+      if (json?.lat != null && json?.long != null) {
+        console.debug('[mapu] success via', proxy, json)
+        return json
+      }
+    } catch(e) {
+      console.debug('[mapu] proxy failed:', proxy, e.message)
+    }
+  }
+  throw new Error('all mapu proxies failed')
+  // returns: { full_link, lat, long, steps, nominatim, timestamp }
+}
+
 async function autoFillFromMapsUrl() {
   const url = document.getElementById('f-maps').value.trim()
   const status = document.getElementById('f-maps-status')
@@ -2083,71 +2123,75 @@ async function autoFillFromMapsUrl() {
 
   status.textContent = '解析中...'
 
-  // Try to extract lat/lng from URL directly
   let lat = null, lng = null
 
-  // Pattern 1: /@lat,lng,  (most common full URL)
-  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-  if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-
-  // Pattern 2: ?q=lat,lng or query=lat,lng
-  if (!lat) {
-    m = url.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/)
-    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-  }
-
-  // Pattern 3: /place/...ll=lat,lng
-  if (!lat) {
-    m = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/)
-    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]) }
-  }
-
-  // Pattern 4: short URL — resolve via multiple proxies
-  if (!lat && (url.includes('goo.gl') || url.includes('maps.app'))) {
-    status.textContent = '解析短網址中...'
-    lat = await resolveShortMapsUrl(url)
-    if (!lat) {
-      status.textContent = '⚠️ 短網址解析失敗，請改用完整 Google Maps 網址（含 @緯度,經度）'
-      return
+  // ── Step 1: Try mapu.retiolus.net (handles both short and full URLs) ──────
+  try {
+    status.textContent = '解析連結中（mapu）...'
+    const data = await resolveViaMapu(url)
+    if (data?.lat != null && data?.long != null) {
+      lat = parseFloat(data.lat)
+      lng = parseFloat(data.long)
     }
-    // lat here is actually {lat, lng} object from resolveShortMapsUrl
-    lng = lat.lng; lat = lat.lat
+    // If mapu returned a full_link but no coords, try parsing the full link
+    if ((!lat || isNaN(lat)) && data?.full_link) {
+      const coords = extractCoordsFromText(data.full_link)
+      if (coords) { lat = coords.lat; lng = coords.lng }
+    }
+  } catch(e) {
+    console.warn('[autoFill] mapu failed:', e)
   }
 
-  if (!lat) {
-    status.textContent = '⚠️ 無法從此網址解析座標，請確認為完整 Google Maps 網址'
+  // ── Step 2: Fallback — extract coords directly from URL text ──────────────
+  if (!lat || isNaN(lat)) {
+    const coords = extractCoordsFromText(url)
+    if (coords) { lat = coords.lat; lng = coords.lng }
+  }
+
+  // ── Step 3: Fallback — legacy proxy resolvers (for edge cases) ────────────
+  if ((!lat || isNaN(lat)) && (url.includes('goo.gl') || url.includes('maps.app'))) {
+    status.textContent = '備用方式解析中...'
+    const coords = await resolveShortMapsUrl(url)
+    if (coords) { lat = coords.lat; lng = coords.lng }
+  }
+
+  if (!lat || isNaN(lat)) {
+    status.textContent = '⚠️ 無法解析座標，請確認為有效的 Google Maps 連結'
     return
   }
 
-  // Fill lat/lng
+  // Fill lat/lng fields
   document.getElementById('f-lat').value = lat
   document.getElementById('f-lng').value = lng
 
-  // Reverse geocode via Nominatim to get address
+  // ── Step 4: Reverse geocode via Nominatim ────────────────────────────────
   try {
-    const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=zh-TW`, {
-      headers: { 'Accept-Language': 'zh-TW' }
-    })
+    status.textContent = '取得地址中...'
+    const res  = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'zh-TW,zh;q=0.9' } }
+    )
     const data = await res.json()
-    if (data?.display_name) {
-      const addrEl = document.getElementById('f-addr')
-      if (!addrEl.value.trim()) {
-        const a = data.address || {}
-        // Build address from most specific to broader context
-        const name     = a.tourism || a.amenity || a.shop || a.leisure || a.building || ''
-        const road     = a.road || a.pedestrian || a.footway || a.path || ''
-        const block    = a.house_number ? `${road} ${a.house_number}`.trim() : road
-        const suburb   = a.suburb || a.neighbourhood || a.quarter || ''
-        const district = a.city_district || a.district || ''
-        const city     = a.city || a.town || a.village || a.county || ''
-        const state    = a.state || a.province || ''
-        const parts = [name, block, suburb, district, city, state].filter(Boolean)
-        addrEl.value = parts.length ? parts.join('、') : data.display_name
-      }
-      status.textContent = `✓ 已填入座標 (${lat}, ${lng})`
+    const addrEl = document.getElementById('f-addr')
+    if (data?.address && !addrEl.value.trim()) {
+      const a = data.address
+      // Format: "{house_number} {street/suburb}, {city}, {state} {postcode}{country}"
+      // e.g. "285 Untenbaru, Nago, Okinawa 905-1634日本"
+      const street   = a.road || a.pedestrian || a.footway || a.path || a.suburb || a.neighbourhood || a.quarter || ''
+      const streetFull = a.house_number ? `${a.house_number} ${street}`.trim() : street
+      const city     = a.city || a.town || a.village || a.county || ''
+      const state    = a.state || a.province || ''
+      const postcode = a.postcode || ''
+      const country  = a.country || ''
+      // Assemble: "street, city, state postcode + country" (omit empty parts)
+      const line1 = [streetFull, city].filter(Boolean).join(', ')
+      const line2 = [state, postcode].filter(Boolean).join(' ')
+      const parts = [line1, line2 ? line2 + country : country].filter(Boolean)
+      addrEl.value = parts.length ? parts.join(', ') : data.display_name
     }
+    status.textContent = `✓ 已填入座標 (${lat.toFixed(6)}, ${lng.toFixed(6)})`
   } catch(_) {
-    status.textContent = `✓ 已填入座標 (${lat}, ${lng})（地址解析失敗，可手動填寫）`
+    status.textContent = `✓ 已填入座標 (${lat.toFixed(6)}, ${lng.toFixed(6)})（地址解析失敗，可手動填寫）`
   }
 }
 
