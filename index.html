@@ -846,6 +846,10 @@
       </div>
     </div>
     <div class="form-group">
+      <label>日期</label>
+      <select id="f-day-id" style="width:100%"></select>
+    </div>
+    <div class="form-group">
       <label>名稱 *</label>
       <input id="f-title" type="text" placeholder="例如：首里城公園"/>
     </div>
@@ -1521,6 +1525,7 @@ function evtCard(e, day, idx) {
           ${(Array.isArray(e.cred_ids)&&e.cred_ids.length) ? `<button class="map-btn" id="credbtn-${e.id}" onclick="toggleEvtPanel('${e.id}','cred')">憑證</button>` : ''}
           ${(Array.isArray(e.links)&&e.links.filter(l=>l.url).length) ? `<button class="map-btn" id="linkbtn-${e.id}" onclick="toggleEvtPanel('${e.id}','link')">資料</button>` : ''}
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="duplicateEvt('${e.id}')">複製</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditEvt('${e.id}')">編輯</button>
       </div>
       ${embedUrl ? `<div class="evt-panel" id="panel-map-${e.id}"><iframe class="map-frame open" style="display:block;width:100%;height:185px;border:none" src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>` : ''}
@@ -1857,12 +1862,21 @@ function getPickedCredIds() {
     .map(el => el.dataset.cid).filter(Boolean)
 }
 
+function populateDaySelect(selectedDayId) {
+  const sel = document.getElementById('f-day-id')
+  sel.innerHTML = days.map(d => {
+    const label = `第 ${d.day_number} 天　${d.title || ''}`.trim()
+    return `<option value="${d.id}"${d.id === selectedDayId ? ' selected' : ''}>${label}</option>`
+  }).join('')
+}
+
 function openAddEvt(dayId) {
   editEvtId=null; editDayId=dayId
   document.getElementById('evt-modal-title').textContent='新增行程事件'
   ;['f-type','f-emoji','f-title','f-tstart','f-tend','f-desc','f-addr','f-lat','f-lng','f-maps'].forEach(id=>{
     const el=document.getElementById(id); if(el.tagName==='SELECT') el.value='attraction'; else el.value=''
   })
+  populateDaySelect(dayId)
   renderClModal([])
   renderLinkModal([])
   renderCredPicker([])
@@ -1885,6 +1899,7 @@ function openEditEvt(id) {
   document.getElementById('f-lat').value     = e.lat||''
   document.getElementById('f-lng').value     = e.lng||''
   document.getElementById('f-maps').value    = e.google_maps_url||''
+  populateDaySelect(e.day_id)
   renderClModal(Array.isArray(e.checklist) ? e.checklist : [])
   renderLinkModal(Array.isArray(e.links) ? e.links : [])
   renderCredPicker(Array.isArray(e.cred_ids) ? e.cred_ids : [])
@@ -1893,6 +1908,24 @@ function openEditEvt(id) {
 }
 
 function closeEvtModal() { document.getElementById('evt-overlay').classList.add('hidden') }
+
+async function duplicateEvt(id) {
+  let e = null
+  Object.values(evtMap).forEach(arr => { const f = arr.find(x => x.id === id); if (f) e = f })
+  if (!e) return
+  const day = days.find(d => d.id === e.day_id)
+  const { id: _id, created_at, updated_at, ...rest } = e
+  const payload = {
+    ...rest,
+    title:       `${e.title}（複製）`,
+    order_index: (evtMap[day?.day_number] || []).length + 1,
+    created_by:  userName,
+    updated_at:  new Date().toISOString(),
+  }
+  const { error } = await db.from('events').insert(payload)
+  if (error) toast(`❌ 複製失敗：${error.message}`)
+  else toast('✓ 已複製行程')
+}
 
 function extractCoordsFromText(text) {
   if (!text) return null
@@ -2230,12 +2263,17 @@ async function saveEvt() {
     updated_at:      new Date().toISOString(),
   }
 
+  // Read day_id from the selector (supports moving event to a different day)
+  const selectedDayId = document.getElementById('f-day-id').value
+
   let error
   if (editEvtId) {
+    payload.day_id = selectedDayId
     ;({ error } = await db.from('events').update(payload).eq('id', editEvtId))
   } else {
-    payload.day_id      = editDayId
-    payload.order_index = (evtMap[curDay]||[]).length + 1
+    const targetDay = days.find(d => d.id === selectedDayId)
+    payload.day_id      = selectedDayId
+    payload.order_index = (evtMap[targetDay?.day_number]||[]).length + 1
     payload.created_by  = userName
     ;({ error } = await db.from('events').insert(payload))
   }
