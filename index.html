@@ -326,31 +326,42 @@
     .btn-route { font-size: .78rem; }
 
     /* ── TIMELINE ── */
+    /* line left = tl-time(46px) + gap(4px) + half dot-col(9px) = 59px */
+    :root { --tl-time-w: 46px; --tl-dot-w: 18px; --tl-gap: 4px; --tl-line: 59px; }
     .timeline { position: relative; padding-top: 4px; }
     .timeline::before {
       content:''; position:absolute;
-      left: 18px; top: 0; bottom: 0;
+      left: var(--tl-line); top: 0; bottom: 0;
       width: 1px; background: var(--border);
     }
-    .tl-item { display: flex; gap: 0; margin-bottom: 8px; align-items: stretch; }
-    /* dot column only — no time text on left */
-    .tl-dot-wrap {
-      flex-shrink: 0; width: 37px;
-      display: flex; flex-direction: column;
-      align-items: center;
-      padding-top: 14px;
+    .tl-item { display: flex; gap: var(--tl-gap); margin-bottom: 8px; align-items: flex-start; }
+    /* Left time column */
+    .tl-time {
+      width: var(--tl-time-w); flex-shrink: 0;
+      text-align: right;
+      font-size: .66rem; font-weight: 500; color: var(--muted);
+      font-variant-numeric: tabular-nums; line-height: 1.25;
+      padding-top: 9px; letter-spacing: -.01em;
     }
+    .tl-time-end { display: block; font-size: .6rem; color: #bbb; margin-top: 1px; }
+    /* Dot column */
+    .tl-dot-col {
+      width: var(--tl-dot-w); flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 6px;
+    }
+    /* Numbered circle */
+    .tl-dot-num {
+      width: 17px; height: 17px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .58rem; font-weight: 700; color: #fff;
+      flex-shrink: 0; z-index: 1; font-family: var(--font);
+    }
+    /* Plain dot */
     .tl-dot {
       width: 7px; height: 7px; border-radius: 50%;
-      background: var(--bg);
-      border: 2px solid #bbb;
-      flex-shrink: 0; z-index: 1;
-    }
-    .tl-dot-line {
-      width: 1px; flex: 1;
-      background: var(--border);
-      margin-top: 4px;
-      min-height: 0;
+      background: var(--bg); border: 2px solid #bbb;
+      flex-shrink: 0; z-index: 1; margin-top: 4px;
     }
 
     /* Event block */
@@ -370,15 +381,6 @@
     .evt-title-row { display: flex; align-items: flex-start; gap: 8px; }
     .evt-title-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .evt-title { font-weight: 600; font-size: .93rem; line-height: 1.35; }
-    .evt-time-row {
-      display: flex; align-items: center; gap: 4px;
-      margin-top: 3px; margin-bottom: 1px;
-    }
-    .evt-time-inline {
-      font-size: .72rem; font-weight: 500; color: var(--muted);
-      font-variant-numeric: tabular-nums; white-space: nowrap;
-    }
-    .evt-time-sep { color: var(--border); font-size: .65rem; }
     .evt-meta  { display: flex; gap: 6px; align-items: center; margin-top: 3px; flex-wrap: wrap; }
     .type-badge {
       font-size: .65rem; font-weight: 600;
@@ -435,25 +437,17 @@
     /* ── DRIVING CONNECTOR ── */
     /* Same flex structure as tl-item so columns align perfectly */
     .drive-connector {
-      display: flex; gap: 0;
+      display: flex; gap: 6px;
       margin-bottom: 0;
       align-items: stretch;
     }
-    /* Spacer matching tl-dot-wrap width */
-    .drive-c-spacer {
-      width: 37px; flex-shrink: 0;
-    }
-    /* Dot column: continuous line through connector */
-    .drive-c-dot-col {
-      width: 0; flex-shrink: 0;
-      display: flex; flex-direction: column; align-items: center;
-    }
-    .drive-c-line {
-      width: 1px; flex: 1; background: var(--border);
-    }
+    /* Spacer matching tl-time width */
+    .drive-c-spacer { width: var(--tl-time-w); flex-shrink: 0; }
+    /* Dot column spacer: line runs behind via timeline::before */
+    .drive-c-dot-col { width: var(--tl-dot-w); flex-shrink: 0; }
     /* Pill area */
     .drive-c-body {
-      flex: 1; margin-left: 8px;
+      flex: 1;
       display: flex; align-items: center;
       padding: 6px 0;
     }
@@ -742,8 +736,8 @@
       .sidebar.open { transform: none; }
       .content-area { margin-left: 0; }
       .mob-header { display: flex; }
-      .page-frame { margin: calc(var(--mob-bar) + 12px) 8px 32px; border-radius: var(--r-md); }
-      main { padding: 20px 14px 48px; }
+      .page-frame { margin: calc(var(--mob-bar) + 12px) 6px 32px; border-radius: var(--r-md); }
+      main { padding: 16px 10px 48px; }
       .form-row { grid-template-columns: 1fr; }
     }
     @media (min-width: 769px) {
@@ -753,10 +747,14 @@
       .day-h1 { font-size: 1.35rem; }
     }
     @media (max-width: 768px) {
-      /* Narrower timeline left rail on mobile */
-      .timeline::before { left: 18px; }
-      .tl-dot-wrap   { width: 37px; }
-      .drive-c-spacer  { width: 37px; }
+      /* Timeline: even tighter on mobile to maximise card width */
+      :root { --tl-time-w: 40px; --tl-dot-w: 16px; --tl-gap: 3px; --tl-line: 52px; }
+      .evt-head { padding: 8px 10px 6px; }
+      .evt-desc { padding: 0 10px 7px; }
+      .evt-addr { padding: 0 10px 8px; }
+      .evt-foot { padding: 5px 10px 8px; }
+      .evt-panel { padding: 8px 10px; }
+      .checklist-section { padding: 4px 10px 9px; }
     }
   </style>
 </head>
@@ -1344,7 +1342,7 @@ function renderDay() {
   let timelineHtml = ''
   if (evts.length) {
     evts.forEach((e, i) => {
-      timelineHtml += evtCard(e, day)
+      timelineHtml += evtCard(e, day, i + 1)
       if (i < evts.length - 1) {
         const next = evts[i + 1]
         timelineHtml += driveConnector(e, next)
@@ -1408,7 +1406,7 @@ function driveConnector(a, b) {
   return `
   <div class="drive-connector" id="dc-${safe}" data-key="${key}">
     <div class="drive-c-spacer"></div>
-    <div class="drive-c-dot-col"><div class="drive-c-line"></div></div>
+    <div class="drive-c-dot-col"></div>
     <div class="drive-c-body">
       <div id="drive-res-${safe}">${resultHtml}</div>
       <div class="drive-mode-tabs">${tabs}</div>
@@ -1488,28 +1486,26 @@ async function fetchDriving(a, b, mode='driving') {
   resEl.innerHTML = driveResultHtml(key, mode, a, b)
 }
 
-function evtCard(e, day) {
+function evtCard(e, day, idx) {
   const mapsHref = e.google_maps_url || (e.lat&&e.lng ? `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}` : '')
   const embedUrl = e.lat&&e.lng ? `https://maps.google.com/maps?q=${e.lat},${e.lng}&z=15&output=embed&hl=zh-TW` : ''
-  const timeStr = e.time_start ? e.time_start.slice(0,5) : '—'
+  const timeStr = e.time_start ? e.time_start.slice(0,5) : ''
   const timeEnd = e.time_end   ? e.time_end.slice(0,5)   : ''
-  const timeLabel = timeStr !== '—'
-    ? `<span class="evt-time-inline">${timeStr}${timeEnd ? `<span class="evt-time-sep"> – </span>${timeEnd}` : ''}</span>`
-    : ''
+  const dotColor = day.color || '#aaa'
+  const dot = idx != null
+    ? `<div class="tl-dot-num" style="background:${dotColor}">${idx}</div>`
+    : `<div class="tl-dot" style="border-color:${dotColor}"></div>`
   return `
   <div class="tl-item">
-    <div class="tl-dot-wrap">
-      <div class="tl-dot" style="border-color:${day.color||'#bbb'}"></div>
-      <div class="tl-dot-line"></div>
-    </div>
-    <div class="evt-card" style="margin-left:8px">
+    <div class="tl-time">${timeStr ? timeStr : ''}${timeEnd ? `<span class="tl-time-end">${timeEnd}</span>` : ''}</div>
+    <div class="tl-dot-col">${dot}</div>
+    <div class="evt-card">
       <div class="evt-head">
         <div class="evt-info">
           <div class="evt-title-row">
             <span class="type-badge t-${e.type}">${TYPE_CN[e.type]||e.type}</span>
             <div class="evt-title-col">
               <span class="evt-title">${e.title}</span>
-              ${timeLabel ? `<div class="evt-time-row">${timeLabel}</div>` : ''}
             </div>
           </div>
         </div>
