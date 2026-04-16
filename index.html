@@ -1243,12 +1243,15 @@ function confirmName() {
 // ════════════════════════════════════════════════════
 // APP START
 // ════════════════════════════════════════════════════
+let _realtimeReady = false
+let _presenceChannel = null
+
 async function startApp() {
   try {
     document.getElementById('app').style.display = 'block'
     await loadDays()
     await Promise.all([loadAllEvts(), loadCreds(), loadPrepItems(), loadExpenses()])
-    setupRealtime()
+    if (!_realtimeReady) { setupRealtime(); _realtimeReady = true }
     setupPresence()
     renderTabs()
     renderPanel()
@@ -1332,22 +1335,63 @@ function setupRealtime() {
 }
 
 function setupPresence() {
-  const ch = db.channel('trip-presence')
-  ch.on('presence',{event:'sync'},() => {
-    online = Object.values(ch.presenceState()).flat()
-    renderPresence()
-  }).subscribe(async s => {
-    if (s==='SUBSCRIBED') await ch.track({user_name:userName,color:userColor,ts:Date.now()})
-  })
+  // Show self immediately — don't wait for Realtime sync
+  online = [{ user_name: userName || '旅伴', color: userColor || '#aaa' }]
+  renderPresence()
+
+  try {
+    // Remove old presence channel if exists (e.g. after changeUser)
+    if (_presenceChannel) { db.removeChannel(_presenceChannel); _presenceChannel = null }
+    const ch = db.channel('trip-presence', { config: { presence: { key: userName || 'guest' } } })
+    _presenceChannel = ch
+
+    const syncOnline = () => {
+      const state = Object.values(ch.presenceState()).flat()
+      // If sync returns data use it; otherwise keep showing self
+      if (state.length > 0) { online = state; renderPresence() }
+    }
+
+    ch.on('presence', { event: 'sync'  }, syncOnline)
+      .on('presence', { event: 'join'  }, syncOnline)
+      .on('presence', { event: 'leave' }, syncOnline)
+      .subscribe(async status => {
+        console.debug('[presence] status:', status)
+        if (status === 'SUBSCRIBED') {
+          try {
+            await ch.track({ user_name: userName || '旅伴', color: userColor || '#aaa', ts: Date.now() })
+          } catch(e) { console.warn('[presence] track failed:', e) }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[presence] channel error, showing self only')
+        }
+      })
+  } catch(e) {
+    console.warn('[presence] setup failed:', e)
+  }
 }
 
 function renderPresence() {
-  const dots = online.length
-    ? online.map(u=>`<div class="p-dot" style="background:${u.color}" title="${u.user_name}">${u.user_name[0]}</div>`).join('')
-    : '<span class="p-label">只有你在線上</span>'
-  document.getElementById('presence-bar').innerHTML = dots
+  const dot = u => {
+    const name  = u.user_name || '?'
+    const color = u.color     || '#aaa'
+    const init  = name[0].toUpperCase()
+    return `<div class="p-dot" style="background:${color}" title="${name}">${init}</div>`
+  }
+  const mobDot = u => {
+    const name  = u.user_name || '?'
+    const color = u.color     || '#aaa'
+    const init  = name[0].toUpperCase()
+    return `<div class="p-dot" style="background:${color};width:22px;height:22px;font-size:.6rem" title="${name}">${init}</div>`
+  }
+
+  const bar = document.getElementById('presence-bar')
+  if (bar) {
+    bar.innerHTML = online.length
+      ? online.map(dot).join('')
+      : '<span class="p-label">只有你在線上</span>'
+  }
+
   const mob = document.getElementById('presence-bar-mob')
-  if (mob) mob.innerHTML = online.map(u=>`<div class="p-dot" style="background:${u.color};width:22px;height:22px;font-size:.6rem" title="${u.user_name}">${u.user_name[0]}</div>`).join('')
+  if (mob) mob.innerHTML = online.map(mobDot).join('')
 }
 
 // ════════════════════════════════════════════════════
