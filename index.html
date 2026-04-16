@@ -866,6 +866,14 @@
       <span id="exp-modal-title" class="modal-title">新增支出</span>
       <button class="btn btn-ghost btn-sm" onclick="closeExpModal()">✕</button>
     </div>
+    <!-- Receipt camera -->
+    <div style="margin-bottom:14px">
+      <input type="file" id="receipt-input" accept="image/*" capture="environment" style="display:none" onchange="onReceiptPicked(this)"/>
+      <button type="button" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;gap:6px;border-style:dashed" onclick="document.getElementById('receipt-input').click()">
+        📷 拍攝收據自動填入
+      </button>
+      <div id="receipt-status" style="font-size:.72rem;color:var(--muted);margin-top:4px;min-height:1em;text-align:center"></div>
+    </div>
     <div class="form-group">
       <label>名稱 *</label>
       <input id="ef-title" type="text" placeholder="例如：晚餐・首里城門票"/>
@@ -1106,6 +1114,7 @@
 // ════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════
+const ANTHROPIC_KEY = ''   // ← 填入你的 Anthropic API Key
 const SUPA_URL = 'https://lvvwdavhngyunryxgwpo.supabase.co'
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2dndkYXZobmd5dW5yeXhnd3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NDYyMjksImV4cCI6MjA5MTIyMjIyOX0.Sc7kuuWnoA2NIiHc_kqcG54f1aBmdnBev3eiOaSXLJU'
 const { createClient } = supabase
@@ -2847,6 +2856,88 @@ async function saveExp() {
   }
   if (error) { toast(`❌ 儲存失敗：${error.message}`); return }
   closeExpModal()
+}
+
+// ── Receipt OCR via Claude Vision ────────────────────
+async function onReceiptPicked(input) {
+  const file = input.files?.[0]
+  if (!file) return
+  const status = document.getElementById('receipt-status')
+
+  if (!ANTHROPIC_KEY) {
+    status.textContent = '⚠️ 請先在程式碼中填入 ANTHROPIC_KEY'
+    return
+  }
+
+  status.textContent = '分析收據中...'
+  input.value = ''  // reset so same file can be picked again
+
+  try {
+    // Convert image to base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader()
+      reader.onload = e => res(e.target.result.split(',')[1])
+      reader.onerror = rej
+      reader.readAsDataURL(file)
+    })
+    const mimeType = file.type || 'image/jpeg'
+
+    // Call Claude API
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-client-side-access-key-allowed': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'text', text:
+`分析這張收據圖片，以純 JSON 格式回傳以下欄位（不要有其他文字）：
+{
+  "title": "商店名稱或主要消費（10字以內）",
+  "amount": 數字（總金額，不含貨幣符號，若有多幣別取主要一種）,
+  "currency": "JPY 或 TWD 或 USD（依收據上的貨幣決定）",
+  "category": "food 或 transport 或 hotel 或 shopping 或 ticket 或 other",
+  "items": "所有購買項目（逗號分隔，簡短描述）"
+}` }
+          ]
+        }]
+      })
+    })
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      throw new Error(err?.error?.message || `HTTP ${resp.status}`)
+    }
+
+    const data = await resp.json()
+    const text = data.content?.[0]?.text || ''
+
+    // Parse JSON — strip markdown fences if present
+    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim()
+    const result = JSON.parse(jsonStr)
+
+    // Fill form fields
+    if (result.title)    document.getElementById('ef-title').value    = result.title
+    if (result.amount)   document.getElementById('ef-amount').value   = result.amount
+    if (result.currency && ['JPY','TWD','USD'].includes(result.currency))
+                         document.getElementById('ef-currency').value = result.currency
+    if (result.category && ['food','transport','hotel','shopping','ticket','other'].includes(result.category))
+                         document.getElementById('ef-category').value = result.category
+    if (result.items)    document.getElementById('ef-note').value     = result.items
+
+    status.textContent = '✓ 已自動填入'
+  } catch(e) {
+    console.error('[receipt]', e)
+    status.textContent = `⚠️ 分析失敗：${e.message}`
+  }
 }
 
 async function deleteExp() {
