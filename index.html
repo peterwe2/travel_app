@@ -473,6 +473,40 @@
     .dm-btn:hover { background: var(--hover); color: var(--text); }
     .dm-btn.active { background: var(--faint); border-color: #c4c3bf; color: var(--text); }
 
+    /* ── BUDGET ── */
+    .budget-summary {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px;
+    }
+    .budget-stat {
+      border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 12px 14px; background: var(--bg);
+    }
+    .budget-stat-label { font-size: .68rem; color: var(--muted); font-weight: 600; letter-spacing: .04em; margin-bottom: 4px; }
+    .budget-stat-val { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .budget-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 14px; }
+    .expense-list { display: flex; flex-direction: column; gap: 7px; }
+    .expense-item {
+      display: flex; align-items: center; gap: 10px;
+      border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 10px 13px; background: var(--bg);
+      transition: border-color .12s;
+    }
+    .expense-item:hover { border-color: #d0cfcc; }
+    .expense-cat-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .expense-info { flex: 1; min-width: 0; }
+    .expense-title { font-size: .88rem; font-weight: 600; }
+    .expense-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+    .expense-amount { font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .expense-actions { display: flex; gap: 4px; }
+    .budget-cat-bar { margin-bottom: 18px; }
+    .cat-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .cat-bar-label { width: 68px; font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+    .cat-bar-track { flex: 1; height: 6px; background: var(--faint); border-radius: 99px; overflow: hidden; }
+    .cat-bar-fill { height: 100%; border-radius: 99px; transition: width .3s; }
+    .cat-bar-amt { font-size: .72rem; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+
     /* ── CHECKLIST ── */
     .checklist-section { padding: 4px 13px 10px; border-top: 1px solid var(--faint); }
     .checklist-label {
@@ -825,6 +859,60 @@
 
 </div>
 
+<!-- ══ EXPENSE MODAL ══ -->
+<div id="exp-overlay" class="overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="exp-modal-title" class="modal-title">新增支出</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeExpModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>名稱 *</label>
+      <input id="ef-title" type="text" placeholder="例如：晚餐・首里城門票"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>金額 *</label>
+        <input id="ef-amount" type="number" min="0" step="1" placeholder="1200"/>
+      </div>
+      <div class="form-group">
+        <label>幣別</label>
+        <select id="ef-currency">
+          <option value="JPY">JPY 日圓</option>
+          <option value="TWD">TWD 台幣</option>
+          <option value="USD">USD 美元</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>類別</label>
+        <select id="ef-category">
+          <option value="food">餐飲</option>
+          <option value="transport">交通</option>
+          <option value="hotel">住宿</option>
+          <option value="shopping">購物</option>
+          <option value="ticket">票券</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>日期</label>
+        <select id="ef-day"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>備註</label>
+      <input id="ef-note" type="text" placeholder="選填"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeExpModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="ef-del-btn" style="display:none" onclick="deleteExp()">刪除</button>
+      <button class="btn btn-primary" onclick="saveExp()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ EVENT MODAL ══ -->
 <div id="evt-overlay" class="overlay hidden">
   <div class="modal-box">
@@ -1156,13 +1244,20 @@ function confirmName() {
 // APP START
 // ════════════════════════════════════════════════════
 async function startApp() {
-  document.getElementById('app').style.display = 'block'
-  await loadDays()
-  await Promise.all([loadAllEvts(), loadCreds(), loadPrepItems()])
-  setupRealtime()
-  setupPresence()
-  renderTabs()
-  renderPanel()
+  try {
+    document.getElementById('app').style.display = 'block'
+    await loadDays()
+    await Promise.all([loadAllEvts(), loadCreds(), loadPrepItems(), loadExpenses()])
+    setupRealtime()
+    setupPresence()
+    renderTabs()
+    renderPanel()
+  } catch(e) {
+    console.error('startApp failed:', e)
+    document.getElementById('main').innerHTML =
+      `<div class="empty" style="color:#c00">⚠️ 載入失敗：${e.message}<br><br>
+       <button class="btn btn-ghost" onclick="startApp()">重試</button></div>`
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -1228,6 +1323,11 @@ function setupRealtime() {
       await loadPrepItems()
       if (curTab==='prep') renderPanel()
     })
+    .on('postgres_changes',{event:'*',schema:'public',table:'expenses'}, async () => {
+      await loadExpenses()
+      if (curTab==='budget') renderPanel()
+    })
+    // note: if expenses table doesn't exist yet, the subscription silently does nothing
     .subscribe()
 }
 
@@ -1280,6 +1380,11 @@ function renderTabs() {
       <span style="font-size:.9rem">📋</span>
       <span class="sb-label">行前注意事項</span>
       <span class="sb-day-n">行李・待辦</span>
+    </button>
+    <button class="sb-item ${curTab==='budget'?'active':''}" onclick="goBudget();closeMobMenu()">
+      <span style="font-size:.9rem">💰</span>
+      <span class="sb-label">記帳</span>
+      <span class="sb-day-n">支出・統計</span>
     </button>`
 
   // Mobile top tabs
@@ -1324,19 +1429,26 @@ function renderTabs() {
     <button class="mob-tab ${curTab==='prep'?'active':''}" onclick="goPrep()" style="justify-content:center">
       <span class="mt-icon">📋</span>
       <span class="mt-week">行前</span>
+    </button>
+    <button class="mob-tab ${curTab==='budget'?'active':''}" onclick="goBudget()" style="justify-content:center">
+      <span class="mt-icon">💰</span>
+      <span class="mt-week">記帳</span>
     </button>`
 }
-function goDay(n) { curDay=n; curTab='day'; renderTabs(); renderPanel() }
-function goCreds()  { curTab='cred'; renderTabs(); renderPanel() }
-function goPrep()   { curTab='prep'; renderTabs(); renderPanel() }
+function goDay(n)   { curDay=n; curTab='day';    renderTabs(); renderPanel() }
+function goCreds()  { curTab='cred';   renderTabs(); renderPanel() }
+function goPrep()   { curTab='prep';   renderTabs(); renderPanel() }
+function goBudget() { curTab='budget'; expFilter='all'; renderTabs(); renderPanel() }
+function setExpFilter(val) { expFilter = val; renderPanel() }
 
 // ════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════
 function renderPanel() {
-  if (curTab==='day')  return renderDay()
-  if (curTab==='cred') return renderCredPanel()
-  if (curTab==='prep') return renderPrepPanel()
+  if (curTab==='day')    return renderDay()
+  if (curTab==='cred')   return renderCredPanel()
+  if (curTab==='prep')   return renderPrepPanel()
+  if (curTab==='budget') return renderBudgetPanel()
 }
 
 /* ── DAY ── */
@@ -2449,6 +2561,7 @@ function toast(msg) {
 document.getElementById('evt-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('evt-overlay'))  closeEvtModal() })
 document.getElementById('cred-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('cred-overlay')) closeCredModal() })
 document.getElementById('day-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('day-overlay'))  closeDayModal() })
+document.getElementById('exp-overlay').addEventListener('click',  e=>{ if(e.target===document.getElementById('exp-overlay'))  closeExpModal() })
 
 // ════════════════════════════════════════════════════
 // DAY EDIT
@@ -2517,6 +2630,186 @@ function changeUser() {
   document.getElementById('name-inp').value = ''
   initColorRow()
   document.getElementById('name-overlay').classList.remove('hidden')
+}
+
+// ════════════════════════════════════════════════════
+// BUDGET / EXPENSES
+// ════════════════════════════════════════════════════
+
+const EXP_CATS = {
+  food:      { label: '餐飲', color: '#f97316' },
+  transport: { label: '交通', color: '#3b82f6' },
+  hotel:     { label: '住宿', color: '#8b5cf6' },
+  shopping:  { label: '購物', color: '#ec4899' },
+  ticket:    { label: '票券', color: '#10b981' },
+  other:     { label: '其他', color: '#94a3b8' },
+}
+const EXP_CURRENCIES = ['JPY', 'TWD', 'USD']
+
+let expenses = []
+let expFilter = 'all'   // 'all' or day_id
+let editExpId = null
+
+async function loadExpenses() {
+  try {
+    const { data, error } = await db.from('expenses').select('*').order('created_at')
+    if (error) { console.warn('expenses table not ready:', error.message); return }
+    expenses = data || []
+  } catch(e) { console.warn('loadExpenses failed:', e) }
+}
+
+function renderBudgetPanel() {
+  const main = document.getElementById('main')
+  if (!main) return
+  try { _renderBudgetPanel(main) }
+  catch(e) { main.innerHTML = `<div class="empty" style="color:#c00">⚠️ 記帳頁面錯誤：${e.message}</div>`; console.error(e) }
+}
+function _renderBudgetPanel(main) {
+
+  // Filter
+  const filtered = expFilter === 'all' ? expenses : expenses.filter(e => e.day_id === expFilter)
+
+  // Totals by currency
+  const totals = {}
+  filtered.forEach(e => {
+    totals[e.currency] = (totals[e.currency] || 0) + Number(e.amount)
+  })
+  const totalStr = Object.entries(totals).map(([c,v]) => `${Math.round(v).toLocaleString()} ${c}`).join('　') || '0'
+
+  // Category breakdown
+  const byCat = {}
+  Object.keys(EXP_CATS).forEach(k => byCat[k] = 0)
+  filtered.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount) })
+  const maxCat = Math.max(...Object.values(byCat), 1)
+
+  // Day filter buttons (use data-attr to avoid quote conflicts in uuid)
+  const dayBtns =
+    `<button class="cf-btn${expFilter==='all'?' active':''}" onclick="setExpFilter('all')">全部</button>` +
+    days.map(d =>
+      `<button class="cf-btn${expFilter===d.id?' active':''}" data-fid="${d.id}" onclick="setExpFilter(this.dataset.fid)">第${d.day_number}天</button>`
+    ).join('')
+
+  // Category bars
+  const catBars = Object.entries(EXP_CATS).map(([k, cfg]) => {
+    const amt = byCat[k] || 0
+    if (!amt) return ''
+    const pct = (amt / maxCat * 100).toFixed(1)
+    return `<div class="cat-bar-row">
+      <span class="cat-bar-label">${cfg.label}</span>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${pct}%;background:${cfg.color}"></div></div>
+      <span class="cat-bar-amt">${Math.round(amt).toLocaleString()}</span>
+    </div>`
+  }).join('')
+
+  // Expense list
+  const listHtml = filtered.length
+    ? filtered.slice().reverse().map(e => {
+        const cfg = EXP_CATS[e.category] || EXP_CATS.other
+        const day = days.find(d => d.id === e.day_id)
+        const dayLabel = day ? `第${day.day_number}天` : ''
+        return `<div class="expense-item">
+          <div class="expense-cat-dot" style="background:${cfg.color}"></div>
+          <div class="expense-info">
+            <div class="expense-title">${escHtml(e.title)}</div>
+            <div class="expense-meta">${cfg.label}${dayLabel ? '・'+dayLabel : ''}${e.note ? '・'+escHtml(e.note) : ''}</div>
+          </div>
+          <div class="expense-amount">${Number(e.amount).toLocaleString()} ${e.currency}</div>
+          <div class="expense-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEditExp('${e.id}')">編輯</button>
+          </div>
+        </div>`
+      }).join('')
+    : '<div class="empty">還沒有支出紀錄</div>'
+
+  main.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="font-size:1.25rem;font-weight:700;margin:0">💰 記帳</h2>
+      <button class="btn btn-sm" onclick="openAddExp()" style="background:#37352f;color:#fff;border-color:#37352f">＋ 新增支出</button>
+    </div>
+    <div class="budget-summary">
+      <div class="budget-stat">
+        <div class="budget-stat-label">總支出</div>
+        <div class="budget-stat-val" style="font-size:.95rem">${totalStr}</div>
+      </div>
+      <div class="budget-stat">
+        <div class="budget-stat-label">筆數</div>
+        <div class="budget-stat-val">${filtered.length}</div>
+      </div>
+      <div class="budget-stat">
+        <div class="budget-stat-label">天數</div>
+        <div class="budget-stat-val">${days.length}</div>
+      </div>
+    </div>
+    ${catBars ? `<div class="budget-cat-bar">${catBars}</div>` : ''}
+    <div class="budget-filters">${dayBtns}</div>
+    <div class="expense-list">${listHtml}</div>
+  `
+}
+
+function openAddExp() {
+  editExpId = null
+  document.getElementById('exp-modal-title').textContent = '新增支出'
+  document.getElementById('ef-title').value = ''
+  document.getElementById('ef-amount').value = ''
+  document.getElementById('ef-currency').value = 'JPY'
+  document.getElementById('ef-category').value = 'food'
+  document.getElementById('ef-note').value = ''
+  document.getElementById('ef-day').innerHTML = `<option value="">（不綁定日期）</option>` +
+    days.map(d=>`<option value="${d.id}">第${d.day_number}天　${d.title||''}</option>`).join('')
+  document.getElementById('ef-del-btn').style.display = 'none'
+  document.getElementById('exp-overlay').classList.remove('hidden')
+}
+
+function openEditExp(id) {
+  const e = expenses.find(x => x.id === id)
+  if (!e) return
+  editExpId = id
+  document.getElementById('exp-modal-title').textContent = '編輯支出'
+  document.getElementById('ef-title').value    = e.title || ''
+  document.getElementById('ef-amount').value   = e.amount || ''
+  document.getElementById('ef-currency').value = e.currency || 'JPY'
+  document.getElementById('ef-category').value = e.category || 'food'
+  document.getElementById('ef-note').value     = e.note || ''
+  document.getElementById('ef-day').innerHTML  = `<option value="">（不綁定日期）</option>` +
+    days.map(d=>`<option value="${d.id}"${d.id===e.day_id?' selected':''}>第${d.day_number}天　${d.title||''}</option>`).join('')
+  document.getElementById('ef-del-btn').style.display = 'inline-flex'
+  document.getElementById('exp-overlay').classList.remove('hidden')
+}
+
+function closeExpModal() { document.getElementById('exp-overlay').classList.add('hidden') }
+
+async function saveExp() {
+  const title    = document.getElementById('ef-title').value.trim()
+  const amount   = parseFloat(document.getElementById('ef-amount').value)
+  if (!title) { document.getElementById('ef-title').focus(); return }
+  if (!amount || isNaN(amount)) { document.getElementById('ef-amount').focus(); return }
+
+  const payload = {
+    title,
+    amount,
+    currency: document.getElementById('ef-currency').value,
+    category: document.getElementById('ef-category').value,
+    note:     document.getElementById('ef-note').value.trim() || null,
+    day_id:   document.getElementById('ef-day').value || null,
+    updated_at: new Date().toISOString(),
+  }
+
+  let error
+  if (editExpId) {
+    ;({ error } = await db.from('expenses').update(payload).eq('id', editExpId))
+  } else {
+    payload.created_by = userName
+    ;({ error } = await db.from('expenses').insert(payload))
+  }
+  if (error) { toast(`❌ 儲存失敗：${error.message}`); return }
+  closeExpModal()
+}
+
+async function deleteExp() {
+  if (!editExpId) return
+  const { error } = await db.from('expenses').delete().eq('id', editExpId)
+  if (error) { toast(`❌ 刪除失敗：${error.message}`); return }
+  closeExpModal()
 }
 </script>
 </body>
