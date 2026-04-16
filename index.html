@@ -992,11 +992,15 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Google Maps 連結（選填）</label>
+      <label>Google Maps 短網址 <span style="color:var(--muted);font-weight:400">（顯示於地址超連結）</span></label>
+      <input id="f-maps-short" type="url" placeholder="https://maps.app.goo.gl/..."/>
+    </div>
+    <div class="form-group">
+      <label>完整 Maps 網址 <span style="color:var(--muted);font-weight:400">（含經緯度，用來自動填入座標）</span></label>
       <div style="display:flex;gap:6px;align-items:center">
-        <input id="f-maps" type="url" placeholder="https://maps.app.goo.gl/..." style="flex:1"
+        <input id="f-maps-full" type="url" placeholder="從 Mapu 取得的完整網址..." style="flex:1"
           onblur="autoFillFromMapsUrl()"/>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillFromMapsUrl()" id="f-maps-parse-btn">自動填入</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillFromMapsUrl()">自動填入</button>
         <a href="https://mapu.retiolus.net" target="_blank" class="btn btn-ghost btn-sm" style="white-space:nowrap">Mapu ↗</a>
       </div>
       <div id="f-maps-status" style="font-size:.72rem;color:var(--muted);margin-top:4px;min-height:1em"></div>
@@ -2038,7 +2042,7 @@ function populateDaySelect(selectedDayId) {
 function openAddEvt(dayId) {
   editEvtId=null; editDayId=dayId
   document.getElementById('evt-modal-title').textContent='新增行程事件'
-  ;['f-type','f-emoji','f-title','f-tstart','f-tend','f-desc','f-addr','f-lat','f-lng','f-maps'].forEach(id=>{
+  ;['f-type','f-emoji','f-title','f-tstart','f-tend','f-desc','f-addr','f-lat','f-lng','f-maps-short','f-maps-full'].forEach(id=>{
     const el=document.getElementById(id); if(el.tagName==='SELECT') el.value='attraction'; else el.value=''
   })
   populateDaySelect(dayId)
@@ -2063,7 +2067,8 @@ function openEditEvt(id) {
   document.getElementById('f-addr').value    = e.address||''
   document.getElementById('f-lat').value     = e.lat||''
   document.getElementById('f-lng').value     = e.lng||''
-  document.getElementById('f-maps').value    = e.google_maps_url||''
+  document.getElementById('f-maps-short').value = e.google_maps_url||''
+  document.getElementById('f-maps-full').value  = ''
   populateDaySelect(e.day_id)
   renderClModal(Array.isArray(e.checklist) ? e.checklist : [])
   renderLinkModal(Array.isArray(e.links) ? e.links : [])
@@ -2315,7 +2320,7 @@ async function resolveViaMapu(url) {
 }
 
 async function autoFillFromMapsUrl() {
-  const url = document.getElementById('f-maps').value.trim()
+  const url = document.getElementById('f-maps-full').value.trim()
   const status = document.getElementById('f-maps-status')
   if (!url) return
 
@@ -2421,7 +2426,7 @@ async function saveEvt() {
     address:         document.getElementById('f-addr').value.trim()||null,
     lat:             parseFloat(document.getElementById('f-lat').value)||null,
     lng:             parseFloat(document.getElementById('f-lng').value)||null,
-    google_maps_url: document.getElementById('f-maps').value.trim()||null,
+    google_maps_url: document.getElementById('f-maps-short').value.trim()||null,
     checklist:       clItems,
     links:           getLinkItems(),
     cred_ids:        getPickedCredIds(),
