@@ -684,6 +684,7 @@
     .t-activity    { background: #d1fae5; color: #065f46; }
     .t-transport   { background: #f3e8ff; color: #5b21b6; }
     .t-accommodation { background: #ffe4e6; color: #9f1239; }
+    .t-shopping    { background: #ffedd5; color: #9a3412; }
     .c-flight   { background: #dbeafe; color: #1e40af; }
     .c-hotel    { background: #fce7f3; color: #9d174d; }
     .c-car      { background: #d1fae5; color: #065f46; }
@@ -934,6 +935,7 @@
           <option value="activity">🤿 活動</option>
           <option value="transport">🚗 交通</option>
           <option value="accommodation">🏨 住宿</option>
+          <option value="shopping">🛍️ 購物</option>
         </select>
       </div>
       <div class="form-group">
@@ -1554,7 +1556,7 @@ function renderDay() {
   })
 }
 
-const TYPE_CN = {meal:'餐廳',attraction:'景點',activity:'活動',transport:'交通',accommodation:'住宿'}
+const TYPE_CN = {meal:'餐廳',attraction:'景點',activity:'活動',transport:'交通',accommodation:'住宿',shopping:'購物'}
 
 /* ── DRIVING DISTANCE ── */
 const driveCache    = {}   // key: "mode:lat1,lng1->lat2,lng2"
